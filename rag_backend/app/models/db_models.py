@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from app.db import Base
+from ..db import Base
 
 class User(Base):
     __tablename__ = "users"
@@ -42,7 +42,7 @@ class Document(Base):
     filename = Column(String)
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(Date)
-    metadata = Column(Text)
+    document_metadata = Column("metadata", Text)
 
 class Escalation(Base):
     __tablename__ = "escalations"
