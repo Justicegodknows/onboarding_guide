@@ -1,0 +1,2 @@
+Alembic migration folder for database schema management.
+Run `alembic revision --autogenerate -m "init"` and `alembic upgrade head` to create tables.

@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      - CHROMA_URL=http://chroma:8100
+      - REDIS_URL=redis://redis:6379/0
+      - LLM_API_KEY=${LLM_API_KEY}
+    depends_on:
+      - postgres
+      - chroma
+      - redis
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  chroma:
+    image: chromadb/chroma:0.5.23
+    restart: always
+    ports:
+      - "8100:8100"
+    volumes:
+      - chromadata:/chroma/.chroma/index
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+volumes:
+  pgdata:
+  chromadata:
+  redisdata:
