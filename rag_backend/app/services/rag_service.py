@@ -19,5 +19,14 @@ class RAGService:
         pass
 
     def generate(self, context, question):
-        # Placeholder for generation logic
-        pass
+        """
+        Generate an answer using Hugging Face LLM (transformers pipeline).
+        context: str or list of str (retrieved context)
+        question: str (user question)
+        """
+        from transformers import pipeline
+        # You can change the model to any supported text-generation model
+        generator = pipeline("text-generation", model="gpt2")
+        prompt = f"Context: {context}\nQuestion: {question}\nAnswer:"
+        result = generator(prompt, max_length=256, num_return_sequences=1)
+        return result[0]["generated_text"][len(prompt):].strip()
