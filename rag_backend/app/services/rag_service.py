@@ -3,8 +3,23 @@
 
 class RAGService:
     def ingest(self, document):
-        # Placeholder for ingest logic
-        pass
+        # Store chunk in the knowledge base
+        from app.db import SessionLocal
+        from app.models.knowledge_base import KnowledgeChunk
+        import datetime
+        session = SessionLocal()
+        try:
+            chunk = KnowledgeChunk(
+                chunk_id=f"{document['source']}-{document['chunk_id']}",
+                title=document['source'],
+                content=document['text'],
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow(),
+            )
+            session.add(chunk)
+            session.commit()
+        finally:
+            session.close()
 
     def chunk(self, document):
         # Placeholder for chunking logic

@@ -2,7 +2,11 @@
 import { useState } from "react";
 import { sendChat } from "../api/backend";
 
-export default function ChatBox() {
+interface ChatBoxProps {
+    department?: string;
+}
+
+export default function ChatBox({ department }: ChatBoxProps) {
     const [question, setQuestion] = useState("");
     const [history, setHistory] = useState<string[]>([]);
     const [answer, setAnswer] = useState<string | null>(null);
@@ -14,9 +18,11 @@ export default function ChatBox() {
         setError(null);
         setAnswer(null);
         try {
-            const res = await sendChat(question, history);
+            // Prepend department context to the question
+            const deptQuestion = department ? `[${department}] ${question}` : question;
+            const res = await sendChat(deptQuestion, history);
             setAnswer(res.answer);
-            setHistory([...history, question]);
+            setHistory([...history, deptQuestion]);
             setQuestion("");
         } catch (e: any) {
             setError(e.message);
@@ -34,7 +40,7 @@ export default function ChatBox() {
                     type="text"
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
-                    placeholder="Type your question..."
+                    placeholder={department ? `Ask about ${department}...` : "Type your question..."}
                     disabled={loading}
                 />
             </div>

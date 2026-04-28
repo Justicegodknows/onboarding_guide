@@ -3,10 +3,13 @@ import Image from "next/image";
 import { useState } from "react";
 import { healthCheck } from "./api/backend";
 import ChatBox from "./components/ChatBox";
+import SideMenu from "./components/SideMenu";
+import { departments } from "./components/departments";
 
 export default function Home() {
   const [health, setHealth] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedDept, setSelectedDept] = useState(departments[0].id);
 
   async function checkHealth() {
     setLoading(true);
@@ -21,17 +24,25 @@ export default function Home() {
     }
   }
 
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+  const dept = departments.find((d) => d.id === selectedDept);
 
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+  return (
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-black font-sans">
+      <SideMenu selected={selectedDept} onSelect={setSelectedDept} />
+      <main className="flex flex-1 flex-col items-center justify-start py-16 px-8 bg-white dark:bg-black">
+        <div className="w-full max-w-3xl flex flex-col gap-6">
+          <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
             Welcome to EUZ_HELP
           </h1>
-          <p className="max-w-xs text-lg leading-7 text-black/70 dark:text-zinc-400">
+          <p className="text-lg leading-7 text-black/70 dark:text-zinc-400">
             Your AI assistant for all things EUZ. Ask me anything about our products, services, or company!
           </p>
+
+          <section className="my-4 p-4 rounded bg-zinc-100 dark:bg-zinc-900">
+            <h2 className="text-xl font-bold mb-2">{dept?.name}</h2>
+            <div className="mb-1 text-zinc-700 dark:text-zinc-300">{dept?.description}</div>
+            <div className="text-zinc-500 dark:text-zinc-400 text-sm">{dept?.info}</div>
+          </section>
 
           {health && (
             <pre className="mt-4 p-2 bg-zinc-100 text-zinc-800 rounded text-left max-w-md overflow-x-auto">
@@ -48,9 +59,9 @@ export default function Home() {
           >
             {loading ? "Checking..." : "Check Backend Health"}
           </a>
-          <ChatBox />
+          <ChatBox department={dept?.name || ""} />
         </div>
-      </main >
-    </div >
+      </main>
+    </div>
   );
 }
