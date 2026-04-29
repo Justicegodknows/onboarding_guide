@@ -1,23 +1,44 @@
 # rag_service.py
 # Ingest → Chunk → Embed → Retrieve → Generate
 
+
+import datetime
+from app.db import SessionLocal
+from app.models.knowledge_base import KnowledgeChunk
+
 class RAGService:
     def ingest(self, document):
-        # Store chunk in the knowledge base
-        from app.db import SessionLocal
-        from app.models.knowledge_base import KnowledgeChunk
-        import datetime
+        """
+        Ingest a document chunk into the knowledge base, avoiding duplicates.
+        document: dict with keys 'source', 'chunk_id', 'text', and optionally 'category_id', 'topic', 'tags'.
+        """
         session = SessionLocal()
+        chunk_uid = f"{document['source']}-{document['chunk_id']}"
         try:
+            # Check for duplicate chunk_id
+            exists = session.query(KnowledgeChunk).filter_by(chunk_id=chunk_uid).first()
+            if exists:
+                print(f"Chunk {chunk_uid} already exists. Skipping.")
+                return False
+
             chunk = KnowledgeChunk(
-                chunk_id=f"{document['source']}-{document['chunk_id']}",
-                title=document['source'],
-                content=document['text'],
+                chunk_id=chunk_uid,
+                title=document.get('source', ''),
+                content=document.get('text', ''),
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow(),
+                category_id=document.get('category_id'),
+                topic=document.get('topic'),
+                tags=document.get('tags')
             )
             session.add(chunk)
             session.commit()
+            print(f"Ingested chunk {chunk_uid}")
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"Error ingesting chunk {chunk_uid}: {e}")
+            return False
         finally:
             session.close()
 

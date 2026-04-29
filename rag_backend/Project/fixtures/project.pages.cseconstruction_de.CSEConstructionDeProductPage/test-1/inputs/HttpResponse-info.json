@@ -1,0 +1,60 @@
+{
+  "_encoding": null,
+  "headers": [
+    [
+      "Date",
+      "Wed, 29 Apr 2026 13:08:52 GMT"
+    ],
+    [
+      "Content-Length",
+      "21013"
+    ],
+    [
+      "Server",
+      "Squarespace"
+    ],
+    [
+      "Expires",
+      "Thu, 01 Jan 1970 00:00:00 GMT"
+    ],
+    [
+      "Vary",
+      "Accept-Encoding"
+    ],
+    [
+      "X-Contextid",
+      "nEBs8TmT/3YqYJdmB"
+    ],
+    [
+      "Strict-Transport-Security",
+      "max-age=0"
+    ],
+    [
+      "Set-Cookie",
+      "crumb=BZUu8de8aT28MTQ1Y2EzYzk1NTIzNzQyZjZkZWIzZDJjYzE4NmY4;Secure;Path=/"
+    ],
+    [
+      "X-Content-Type-Options",
+      "nosniff"
+    ],
+    [
+      "Etag",
+      "W/\"49be1edcc136fed27d4867278ee0f4a7\""
+    ],
+    [
+      "Content-Type",
+      "text/html;charset=utf-8"
+    ],
+    [
+      "Accept-Ranges",
+      "bytes"
+    ],
+    [
+      "Age",
+      "0"
+    ]
+  ],
+  "status": 200,
+  "type": "HttpResponse",
+  "url": "https://www.cseconstruction.de/"
+}

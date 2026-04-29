@@ -1,0 +1,44 @@
+{
+  "_encoding": null,
+  "headers": [
+    [
+      "Date",
+      "Wed, 29 Apr 2026 12:59:09 GMT"
+    ],
+    [
+      "Set-Cookie",
+      "PHPSESSID=69db7288a617d32987ca5d84f6e1e015; path=/"
+    ],
+    [
+      "Server",
+      "Apache/2.4.66 (Unix)"
+    ],
+    [
+      "Expires",
+      "Thu, 19 Nov 1981 08:52:00 GMT"
+    ],
+    [
+      "Vary",
+      "User-Agent"
+    ],
+    [
+      "X-Powered-By",
+      "PHP/8.4.20"
+    ],
+    [
+      "Content-Type",
+      "text/html; charset=UTF-8"
+    ],
+    [
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    ],
+    [
+      "Pragma",
+      "no-cache"
+    ]
+  ],
+  "status": 200,
+  "type": "HttpResponse",
+  "url": "https://www.e-u-z.de/"
+}

@@ -1,7 +1,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import health, chat, documents, onboarding
+
+from app.routers import health, chat, documents, onboarding, ingest
 
 
 app = FastAPI()
@@ -20,3 +21,4 @@ app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(documents.router)
 app.include_router(onboarding.router)
+app.include_router(ingest.router)
