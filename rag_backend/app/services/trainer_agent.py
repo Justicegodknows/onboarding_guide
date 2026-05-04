@@ -16,6 +16,7 @@ from app.models.knowledge_base import (
     TrainerResponseMemory,
     TrainerSourceSnapshot,
 )
+from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 
 
 class TrainerSubAgent:
@@ -27,6 +28,7 @@ class TrainerSubAgent:
         "https://effizienztagung.de/vortragende/",
     ]
     SOURCE_REFRESH_MINUTES = 60
+    GOOGLE_DRIVE_REFRESH_MINUTES = 30
 
     def __init__(self) -> None:
         self._db_available = True
@@ -99,6 +101,21 @@ class TrainerSubAgent:
             {
                 "type": "function",
                 "function": {
+                    "name": "search_google_drive_knowledge",
+                    "description": "Search the primary Google Drive knowledge base snapshots.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name": "search_core_web_knowledge",
                     "description": "Search Trainer core website knowledge snapshots.",
                     "parameters": {
@@ -156,6 +173,66 @@ class TrainerSubAgent:
                 },
             },
         ]
+
+    def _search_google_drive_knowledge(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        if not self._db_available:
+            pattern = query.lower().strip()
+            rows = []
+            for snap in self._volatile_source_snapshots.values():
+                if snap.get("source_type") != "google_drive":
+                    continue
+                searchable = (
+                    f"{snap.get('title', '')} "
+                    f"{snap.get('content', '')} "
+                    f"{snap.get('source_url', '')}"
+                ).lower()
+                if pattern in searchable:
+                    rows.append(snap)
+            rows = rows[: max(1, min(limit, 10))]
+            return {
+                "count": len(rows),
+                "items": [
+                    {
+                        "source_url": row.get("source_url"),
+                        "title": row.get("title"),
+                        "fetched_at": row.get("fetched_at"),
+                        "content_excerpt": (row.get("content", "") or "")[:1200],
+                    }
+                    for row in rows
+                ],
+            }
+
+        session = SessionLocal()
+        try:
+            pattern = f"%{query}%"
+            rows = (
+                session.query(TrainerSourceSnapshot)
+                .filter(TrainerSourceSnapshot.source_type == "google_drive")
+                .filter(
+                    or_(
+                        TrainerSourceSnapshot.title.ilike(pattern),
+                        TrainerSourceSnapshot.content.ilike(pattern),
+                        TrainerSourceSnapshot.source_url.ilike(pattern),
+                    )
+                )
+                .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .limit(max(1, min(limit, 10)))
+                .all()
+            )
+            return {
+                "count": len(rows),
+                "items": [
+                    {
+                        "source_url": row.source_url,
+                        "title": row.title,
+                        "fetched_at": row.fetched_at.isoformat() if row.fetched_at else None,
+                        "content_excerpt": (row.content or "")[:1200],
+                    }
+                    for row in rows
+                ],
+            }
+        finally:
+            session.close()
 
     def _search_core_web_knowledge(self, query: str, limit: int = 5) -> Dict[str, Any]:
         if not self._db_available:
@@ -406,6 +483,200 @@ class TrainerSubAgent:
         finally:
             session.close()
 
+    async def _refresh_google_drive_sources(self) -> Dict[str, Any]:
+        service = GoogleDriveKnowledgeService()
+        if not service.configured:
+            return {
+                "enabled": False,
+                "refreshed": 0,
+                "skipped": 0,
+                "errors": [
+                    {
+                        "source": "google_drive",
+                        "error": "Google Drive not configured. Set GOOGLE_DRIVE_API_KEY.",
+                    }
+                ],
+            }
+
+        now = datetime.datetime.utcnow()
+        stale_before = now - datetime.timedelta(minutes=self.GOOGLE_DRIVE_REFRESH_MINUTES)
+
+        if self._db_available:
+            session = SessionLocal()
+            try:
+                latest = (
+                    session.query(TrainerSourceSnapshot)
+                    .filter(TrainerSourceSnapshot.source_type == "google_drive")
+                    .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                    .first()
+                )
+                if latest and latest.fetched_at and latest.fetched_at > stale_before:
+                    return {"enabled": True, "refreshed": 0, "skipped": 1, "errors": []}
+            finally:
+                session.close()
+        else:
+            recent = False
+            for snap in self._volatile_source_snapshots.values():
+                if snap.get("source_type") != "google_drive":
+                    continue
+                raw_fetched = snap.get("fetched_at")
+                if not raw_fetched:
+                    continue
+                try:
+                    fetched_at = datetime.datetime.fromisoformat(str(raw_fetched))
+                except ValueError:
+                    continue
+                if fetched_at > stale_before:
+                    recent = True
+                    break
+            if recent:
+                return {"enabled": True, "refreshed": 0, "skipped": 1, "errors": []}
+
+        try:
+            chunks, stats = service.fetch_chunks()
+        except Exception as exc:
+            return {
+                "enabled": True,
+                "refreshed": 0,
+                "skipped": 0,
+                "errors": [{"source": "google_drive", "error": str(exc)}],
+            }
+
+        by_file: Dict[str, Dict[str, Any]] = {}
+        for chunk in chunks:
+            source = str(chunk.get("source", ""))
+            chunk_id = str(chunk.get("chunk_id", ""))
+            file_id = chunk_id.split("-", 1)[0] if chunk_id else ""
+            if source not in by_file:
+                by_file[source] = {
+                    "file_id": file_id,
+                    "title": source.replace("gdrive:", "", 1),
+                    "parts": [],
+                }
+            if chunk.get("text"):
+                by_file[source]["parts"].append(str(chunk["text"]))
+
+        if self._db_available:
+            session = SessionLocal()
+            refreshed = 0
+            errors: List[Dict[str, str]] = []
+            try:
+                for source, payload in by_file.items():
+                    content = "\n".join(payload["parts"])[:30000]
+                    if not content.strip():
+                        continue
+                    file_id = payload.get("file_id", "")
+                    source_url = (
+                        f"https://drive.google.com/file/d/{file_id}/view"
+                        if file_id
+                        else f"google-drive://{service.folder_id}/{source}"
+                    )
+                    row = (
+                        session.query(TrainerSourceSnapshot)
+                        .filter_by(source_url=source_url)
+                        .first()
+                    )
+                    if row:
+                        row.source_type = "google_drive"
+                        row.title = payload["title"]
+                        row.content = content
+                        row.content_hash = self._content_hash(content)
+                        row.fetched_at = now
+                    else:
+                        session.add(
+                            TrainerSourceSnapshot(
+                                source_url=source_url,
+                                source_type="google_drive",
+                                title=payload["title"],
+                                content=content,
+                                content_hash=self._content_hash(content),
+                                fetched_at=now,
+                            )
+                        )
+                    refreshed += 1
+                session.commit()
+            except Exception as exc:
+                session.rollback()
+                errors.append({"source": "google_drive", "error": str(exc)})
+            finally:
+                session.close()
+
+            return {
+                "enabled": True,
+                "refreshed": refreshed,
+                "skipped": 0,
+                "errors": errors,
+                "stats": stats,
+            }
+
+        refreshed = 0
+        for source, payload in by_file.items():
+            content = "\n".join(payload["parts"])[:30000]
+            if not content.strip():
+                continue
+            file_id = payload.get("file_id", "")
+            source_url = (
+                f"https://drive.google.com/file/d/{file_id}/view"
+                if file_id
+                else f"google-drive://{service.folder_id}/{source}"
+            )
+            self._volatile_source_snapshots[source_url] = {
+                "source_url": source_url,
+                "source_type": "google_drive",
+                "title": payload["title"],
+                "content": content,
+                "content_hash": self._content_hash(content),
+                "fetched_at": now.isoformat(),
+            }
+            refreshed += 1
+
+        return {
+            "enabled": True,
+            "refreshed": refreshed,
+            "skipped": 0,
+            "errors": [],
+            "stats": stats,
+        }
+
+    def _build_google_drive_source_digest(self, limit_chars_per_source: int = 3000) -> str:
+        if not self._db_available:
+            rows = [
+                row
+                for row in self._volatile_source_snapshots.values()
+                if row.get("source_type") == "google_drive"
+            ]
+            if not rows:
+                return "No Google Drive knowledge snapshots available yet."
+
+            lines: List[str] = []
+            for row in rows:
+                lines.append(f"Source: {row.get('source_url')}")
+                lines.append(f"Fetched: {row.get('fetched_at', 'unknown')}")
+                lines.append(f"Content: {(row.get('content', '') or '')[:limit_chars_per_source]}")
+                lines.append("---")
+            return "\n".join(lines)
+
+        session = SessionLocal()
+        try:
+            rows = (
+                session.query(TrainerSourceSnapshot)
+                .filter(TrainerSourceSnapshot.source_type == "google_drive")
+                .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .all()
+            )
+            if not rows:
+                return "No Google Drive knowledge snapshots available yet."
+
+            lines: List[str] = []
+            for row in rows:
+                lines.append(f"Source: {row.source_url}")
+                lines.append(f"Fetched: {row.fetched_at.isoformat() if row.fetched_at else 'unknown'}")
+                lines.append(f"Content: {(row.content or '')[:limit_chars_per_source]}")
+                lines.append("---")
+            return "\n".join(lines)
+        finally:
+            session.close()
+
     def _build_core_source_digest(self, limit_chars_per_source: int = 3000) -> str:
         if not self._db_available:
             if not self._volatile_source_snapshots:
@@ -521,6 +792,11 @@ class TrainerSubAgent:
                 query=str(arguments.get("query", "")),
                 limit=int(arguments.get("limit", 5)),
             )
+        if name == "search_google_drive_knowledge":
+            return self._search_google_drive_knowledge(
+                query=str(arguments.get("query", "")),
+                limit=int(arguments.get("limit", 5)),
+            )
         if name == "search_core_web_knowledge":
             return self._search_core_web_knowledge(
                 query=str(arguments.get("query", "")),
@@ -564,8 +840,11 @@ class TrainerSubAgent:
         question: str,
         history: Optional[List[str]] = None,
     ) -> str:
-        refreshed = await self._refresh_core_sources()
-        source_digest = self._build_core_source_digest()
+        drive_refresh = await self._refresh_google_drive_sources()
+        web_refresh = await self._refresh_core_sources()
+        source_digest = self._build_google_drive_source_digest()
+        if source_digest.startswith("No Google Drive knowledge snapshots"):
+            source_digest = self._build_core_source_digest()
         prior = self._recall_previous_training_response(question)
         if prior.get("found"):
             return (
@@ -575,17 +854,19 @@ class TrainerSubAgent:
 
         system = (
             "You are Trainer, a sub-agent focused on employee training. "
-            "You must treat the backend-managed core websites as primary knowledge base. "
+            "You must treat the configured Google Drive folder as the primary knowledge base. "
             "Use tool calls whenever external context is needed. "
-            "Prioritize local training data, then core website snapshots, then other sources."
+            "Prioritize Google Drive knowledge first, then local training data, "
+            "then core website snapshots, then other sources."
         )
 
         user_prompt = (
             f"{question}\n\n"
-            "Core website knowledge base (auto-refreshed backend snapshots):\n"
+            "Primary Google Drive knowledge base (backend snapshots):\n"
             + source_digest
             + "\n\n"
-            f"Refresh stats: {json.dumps(refreshed)}"
+            f"Google Drive refresh stats: {json.dumps(drive_refresh)}\n"
+            f"Core websites refresh stats: {json.dumps(web_refresh)}"
         )
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]

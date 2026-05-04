@@ -8,5 +8,6 @@ psycopg2-binary
 transformers
 torch
 python-docx
+pypdf
 mcp
 httpx

@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     LM_STUDIO_MODEL: str = "google/gemma-4-E4B-it"
     LM_STUDIO_USE_MCP: bool = False
 
+    # Google Drive-backed knowledge base (primary source for ingestion)
+    GOOGLE_DRIVE_FOLDER_URL: str = (
+        "https://drive.google.com/drive/folders/"
+        "1vN7M2R14vNXCKvU2Y0ouCWeVZnuTEjAP?usp=drive_link"
+    )
+    GOOGLE_DRIVE_FOLDER_ID: str = "1vN7M2R14vNXCKvU2Y0ouCWeVZnuTEjAP"
+    GOOGLE_DRIVE_API_KEY: str = ""
+    GOOGLE_DRIVE_CHUNK_SIZE: int = 1200
+    GOOGLE_DRIVE_MAX_FILES: int = 200
+
     class Config:
         env_file = str(ENV_FILE)
         extra = "ignore"
