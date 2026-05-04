@@ -1,0 +1,695 @@
+import datetime
+import hashlib
+import json
+import re
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List, Optional
+
+import httpx
+from sqlalchemy import or_
+from sqlalchemy.exc import SQLAlchemyError
+
+from app.core.config import settings
+from app.db import Base, SessionLocal, engine
+from app.models.knowledge_base import (
+    KnowledgeChunk,
+    TrainerResponseMemory,
+    TrainerSourceSnapshot,
+)
+
+
+class TrainerSubAgent:
+    """Trainer sub-agent with LM Studio tool-calling support."""
+
+    CORE_WEBSITE_SOURCES = [
+        "https://energiesparkommissar.de/video/bauphysik-zirkus-bauphysik-experimente-energiesparen-ohne-schimmel",
+        "https://www.buildair.eu/",
+        "https://effizienztagung.de/vortragende/",
+    ]
+    SOURCE_REFRESH_MINUTES = 60
+
+    def __init__(self) -> None:
+        self._db_available = True
+        self._volatile_source_snapshots: Dict[str, Dict[str, Any]] = {}
+        self._volatile_response_memory: Dict[str, Dict[str, Any]] = {}
+        self._ensure_tables()
+
+    def _ensure_tables(self) -> None:
+        """Create Trainer persistence tables if they do not exist yet."""
+        try:
+            Base.metadata.create_all(
+                bind=engine,
+                tables=[TrainerSourceSnapshot.__table__, TrainerResponseMemory.__table__],
+            )
+        except SQLAlchemyError:
+            self._db_available = False
+
+    @staticmethod
+    def _normalize_question(question: str) -> str:
+        return re.sub(r"\s+", " ", question.strip().lower())
+
+    def _question_key(self, question: str) -> str:
+        normalized = self._normalize_question(question)
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def _content_hash(self, content: str) -> str:
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+    def _auth_headers(self) -> Dict[str, str]:
+        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        if settings.LLM_API_KEY and settings.LLM_API_KEY.strip():
+            headers["Authorization"] = f"Bearer {settings.LLM_API_KEY.strip()}"
+        return headers
+
+    def _tool_specs(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_training_data",
+                    "description": "Search local onboarding training chunks from the RAG knowledge base.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_core_web_knowledge",
+                    "description": "Search Trainer core website knowledge snapshots.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                        },
+                        "required": ["query"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "recall_previous_training_response",
+                    "description": "Retrieve a previously stored Trainer answer for a similar question.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string"},
+                        },
+                        "required": ["question"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_website_source",
+                    "description": "Fetch and summarize a website source relevant to training.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "url": {"type": "string"},
+                            "max_chars": {"type": "integer", "minimum": 500, "maximum": 12000},
+                        },
+                        "required": ["url"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_youtube_channel_feed",
+                    "description": "Read latest videos from a YouTube channel feed URL or channel ID.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "channel": {"type": "string"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                        },
+                        "required": ["channel"],
+                    },
+                },
+            },
+        ]
+
+    def _search_core_web_knowledge(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        if not self._db_available:
+            pattern = query.lower().strip()
+            rows = []
+            for snap in self._volatile_source_snapshots.values():
+                searchable = (
+                    f"{snap.get('title', '')} "
+                    f"{snap.get('content', '')} "
+                    f"{snap.get('source_url', '')}"
+                ).lower()
+                if pattern in searchable:
+                    rows.append(snap)
+            rows = rows[: max(1, min(limit, 10))]
+            return {
+                "count": len(rows),
+                "items": [
+                    {
+                        "source_url": row.get("source_url"),
+                        "title": row.get("title"),
+                        "fetched_at": row.get("fetched_at"),
+                        "content_excerpt": (row.get("content", "") or "")[:1200],
+                    }
+                    for row in rows
+                ],
+            }
+
+        session = SessionLocal()
+        try:
+            pattern = f"%{query}%"
+            rows = (
+                session.query(TrainerSourceSnapshot)
+                .filter(
+                    or_(
+                        TrainerSourceSnapshot.title.ilike(pattern),
+                        TrainerSourceSnapshot.content.ilike(pattern),
+                        TrainerSourceSnapshot.source_url.ilike(pattern),
+                    )
+                )
+                .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .limit(max(1, min(limit, 10)))
+                .all()
+            )
+            return {
+                "count": len(rows),
+                "items": [
+                    {
+                        "source_url": row.source_url,
+                        "title": row.title,
+                        "fetched_at": row.fetched_at.isoformat() if row.fetched_at else None,
+                        "content_excerpt": (row.content or "")[:1200],
+                    }
+                    for row in rows
+                ],
+            }
+        finally:
+            session.close()
+
+    def _recall_previous_training_response(self, question: str) -> Dict[str, Any]:
+        if not self._db_available:
+            row = self._volatile_response_memory.get(self._question_key(question))
+            if not row:
+                return {"found": False}
+            return {
+                "found": True,
+                "question": row.get("question"),
+                "answer": row.get("answer"),
+                "updated_at": row.get("updated_at"),
+            }
+
+        session = SessionLocal()
+        try:
+            key = self._question_key(question)
+            row = (
+                session.query(TrainerResponseMemory)
+                .filter_by(question_key=key)
+                .first()
+            )
+            if not row:
+                return {"found": False}
+            return {
+                "found": True,
+                "question": row.question,
+                "answer": row.answer,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            }
+        finally:
+            session.close()
+
+    def _search_training_data(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        if not self._db_available:
+            return {
+                "count": 0,
+                "items": [],
+                "note": "Database unavailable; local training-data query is disabled.",
+            }
+
+        session = SessionLocal()
+        try:
+            pattern = f"%{query}%"
+            rows = (
+                session.query(KnowledgeChunk)
+                .filter(
+                    or_(
+                        KnowledgeChunk.title.ilike(pattern),
+                        KnowledgeChunk.topic.ilike(pattern),
+                        KnowledgeChunk.content.ilike(pattern),
+                        KnowledgeChunk.tags.ilike(pattern),
+                    )
+                )
+                .order_by(KnowledgeChunk.updated_at.desc())
+                .limit(max(1, min(limit, 10)))
+                .all()
+            )
+            return {
+                "count": len(rows),
+                "items": [
+                    {
+                        "chunk_id": row.chunk_id,
+                        "title": row.title,
+                        "topic": row.topic,
+                        "content": (row.content or "")[:1200],
+                        "tags": row.tags,
+                    }
+                    for row in rows
+                ],
+            }
+        finally:
+            session.close()
+
+    async def _read_website_source(self, url: str, max_chars: int = 4000) -> Dict[str, Any]:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
+        text = response.text
+        text = re.sub(r"<script[\\s\\S]*?</script>", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"<style[\\s\\S]*?</style>", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"\\s+", " ", text).strip()
+        return {
+            "url": url,
+            "excerpt": text[: max(500, min(max_chars, 12000))],
+        }
+
+    async def _refresh_core_sources(self) -> Dict[str, Any]:
+        """Refresh core websites if snapshots are stale; keep latest snapshots persisted."""
+        if not self._db_available:
+            now = datetime.datetime.utcnow()
+            stale_before = now - datetime.timedelta(minutes=self.SOURCE_REFRESH_MINUTES)
+            refreshed = 0
+            skipped = 0
+            errors: List[Dict[str, str]] = []
+
+            for url in self.CORE_WEBSITE_SOURCES:
+                existing = self._volatile_source_snapshots.get(url)
+                fetched_at = None
+                if existing and existing.get("fetched_at"):
+                    try:
+                        fetched_at = datetime.datetime.fromisoformat(existing["fetched_at"])
+                    except ValueError:
+                        fetched_at = None
+
+                if fetched_at and fetched_at > stale_before:
+                    skipped += 1
+                    continue
+
+                try:
+                    fetched = await self._read_website_source(url, max_chars=24000)
+                    content = fetched.get("excerpt", "")
+                    title = url
+                    if content:
+                        first_sentence = content.split(".")[0].strip()
+                        if first_sentence:
+                            title = first_sentence[:200]
+
+                    self._volatile_source_snapshots[url] = {
+                        "source_url": url,
+                        "source_type": "website",
+                        "title": title,
+                        "content": content,
+                        "content_hash": self._content_hash(content),
+                        "fetched_at": now.isoformat(),
+                    }
+                    refreshed += 1
+                except Exception as exc:
+                    errors.append({"url": url, "error": str(exc)})
+
+            return {"refreshed": refreshed, "skipped": skipped, "errors": errors}
+
+        session = SessionLocal()
+        now = datetime.datetime.utcnow()
+        stale_before = now - datetime.timedelta(minutes=self.SOURCE_REFRESH_MINUTES)
+        refreshed = 0
+        skipped = 0
+        errors: List[Dict[str, str]] = []
+
+        try:
+            for url in self.CORE_WEBSITE_SOURCES:
+                existing = (
+                    session.query(TrainerSourceSnapshot)
+                    .filter_by(source_url=url)
+                    .first()
+                )
+                if existing and existing.fetched_at and existing.fetched_at > stale_before:
+                    skipped += 1
+                    continue
+
+                try:
+                    fetched = await self._read_website_source(url, max_chars=24000)
+                    content = fetched.get("excerpt", "")
+                    title = url
+                    if content:
+                        first_sentence = content.split(".")[0].strip()
+                        if first_sentence:
+                            title = first_sentence[:200]
+
+                    if existing:
+                        existing.source_type = "website"
+                        existing.title = title
+                        existing.content = content
+                        existing.content_hash = self._content_hash(content)
+                        existing.fetched_at = now
+                    else:
+                        session.add(
+                            TrainerSourceSnapshot(
+                                source_url=url,
+                                source_type="website",
+                                title=title,
+                                content=content,
+                                content_hash=self._content_hash(content),
+                                fetched_at=now,
+                            )
+                        )
+                    refreshed += 1
+                except Exception as exc:
+                    errors.append({"url": url, "error": str(exc)})
+
+            session.commit()
+            return {
+                "refreshed": refreshed,
+                "skipped": skipped,
+                "errors": errors,
+            }
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def _build_core_source_digest(self, limit_chars_per_source: int = 3000) -> str:
+        if not self._db_available:
+            if not self._volatile_source_snapshots:
+                return "No core website snapshots available yet."
+
+            lines: List[str] = []
+            for row in self._volatile_source_snapshots.values():
+                lines.append(f"Source: {row.get('source_url')}")
+                lines.append(f"Fetched: {row.get('fetched_at', 'unknown')}")
+                lines.append(f"Content: {(row.get('content', '') or '')[:limit_chars_per_source]}")
+                lines.append("---")
+            return "\n".join(lines)
+
+        session = SessionLocal()
+        try:
+            rows = (
+                session.query(TrainerSourceSnapshot)
+                .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .all()
+            )
+            if not rows:
+                return "No core website snapshots available yet."
+
+            lines: List[str] = []
+            for row in rows:
+                lines.append(f"Source: {row.source_url}")
+                lines.append(f"Fetched: {row.fetched_at.isoformat() if row.fetched_at else 'unknown'}")
+                lines.append(f"Content: {(row.content or '')[:limit_chars_per_source]}")
+                lines.append("---")
+            return "\n".join(lines)
+        finally:
+            session.close()
+
+    def _store_response_memory(self, question: str, answer: str, source_digest: str) -> None:
+        if not self._db_available:
+            self._volatile_response_memory[self._question_key(question)] = {
+                "question": question,
+                "answer": answer,
+                "source_digest": source_digest[:12000],
+                "updated_at": datetime.datetime.utcnow().isoformat(),
+            }
+            return
+
+        key = self._question_key(question)
+        now = datetime.datetime.utcnow()
+        session = SessionLocal()
+        try:
+            row = session.query(TrainerResponseMemory).filter_by(question_key=key).first()
+            if row:
+                row.question = question
+                row.answer = answer
+                row.source_digest = source_digest[:12000]
+                row.updated_at = now
+            else:
+                session.add(
+                    TrainerResponseMemory(
+                        question=question,
+                        question_key=key,
+                        answer=answer,
+                        source_digest=source_digest[:12000],
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    async def _read_youtube_channel_feed(self, channel: str, limit: int = 5) -> Dict[str, Any]:
+        channel = channel.strip()
+        if channel.startswith("https://www.youtube.com/feeds/videos.xml"):
+            feed_url = channel
+        elif channel.startswith("UC"):
+            feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel}"
+        else:
+            match = re.search(r"/channel/([A-Za-z0-9_-]+)", channel)
+            if not match:
+                return {
+                    "error": (
+                        "Unsupported channel format. Use a YouTube feed URL or channel ID "
+                        "starting with UC..."
+                    )
+                }
+            feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={match.group(1)}"
+
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            response = await client.get(feed_url)
+            response.raise_for_status()
+
+        root = ET.fromstring(response.text)
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        entries = []
+        for entry in root.findall("atom:entry", ns)[: max(1, min(limit, 10))]:
+            title_el = entry.find("atom:title", ns)
+            link_el = entry.find("atom:link", ns)
+            pub_el = entry.find("atom:published", ns)
+            entries.append(
+                {
+                    "title": title_el.text if title_el is not None else "",
+                    "url": link_el.attrib.get("href", "") if link_el is not None else "",
+                    "published": pub_el.text if pub_el is not None else "",
+                }
+            )
+
+        return {"feed_url": feed_url, "videos": entries}
+
+    async def _run_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if name == "search_training_data":
+            return self._search_training_data(
+                query=str(arguments.get("query", "")),
+                limit=int(arguments.get("limit", 5)),
+            )
+        if name == "search_core_web_knowledge":
+            return self._search_core_web_knowledge(
+                query=str(arguments.get("query", "")),
+                limit=int(arguments.get("limit", 5)),
+            )
+        if name == "recall_previous_training_response":
+            return self._recall_previous_training_response(
+                question=str(arguments.get("question", ""))
+            )
+        if name == "read_website_source":
+            return await self._read_website_source(
+                url=str(arguments.get("url", "")),
+                max_chars=int(arguments.get("max_chars", 4000)),
+            )
+        if name == "read_youtube_channel_feed":
+            return await self._read_youtube_channel_feed(
+                channel=str(arguments.get("channel", "")),
+                limit=int(arguments.get("limit", 5)),
+            )
+        return {"error": f"Unknown tool: {name}"}
+
+    @staticmethod
+    def _message_content_to_text(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text" and item.get("text"):
+                        parts.append(item["text"])
+                    elif item.get("content"):
+                        parts.append(str(item["content"]))
+                else:
+                    parts.append(str(item))
+            return "\n".join(parts).strip()
+        return str(content)
+
+    async def answer(
+        self,
+        question: str,
+        history: Optional[List[str]] = None,
+    ) -> str:
+        refreshed = await self._refresh_core_sources()
+        source_digest = self._build_core_source_digest()
+        prior = self._recall_previous_training_response(question)
+        if prior.get("found"):
+            return (
+                "Reused stored training response from memory:\n\n"
+                f"{prior.get('answer', '')}"
+            )
+
+        system = (
+            "You are Trainer, a sub-agent focused on employee training. "
+            "You must treat the backend-managed core websites as primary knowledge base. "
+            "Use tool calls whenever external context is needed. "
+            "Prioritize local training data, then core website snapshots, then other sources."
+        )
+
+        user_prompt = (
+            f"{question}\n\n"
+            "Core website knowledge base (auto-refreshed backend snapshots):\n"
+            + source_digest
+            + "\n\n"
+            f"Refresh stats: {json.dumps(refreshed)}"
+        )
+
+        messages: List[Dict[str, Any]] = [{"role": "system", "content": system}]
+        for item in history or []:
+            messages.append({"role": "user", "content": item})
+        messages.append({"role": "user", "content": user_prompt})
+
+        url = f"{settings.LM_STUDIO_BASE_URL}/v1/chat/completions"
+        payload: Dict[str, Any] = {
+            "model": settings.LM_STUDIO_MODEL,
+            "messages": messages,
+            "tools": self._tool_specs(),
+            "tool_choice": "auto",
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "max_tokens": 700,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=75.0) as client:
+                first = await client.post(url, json=payload, headers=self._auth_headers())
+                first.raise_for_status()
+                first_data = first.json()
+
+            first_message = first_data["choices"][0]["message"]
+            tool_calls = first_message.get("tool_calls") or []
+
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": first_message.get("content", ""),
+                    "tool_calls": tool_calls,
+                }
+            )
+
+            if not tool_calls:
+                answer_text = self._message_content_to_text(first_message.get("content", ""))
+                self._store_response_memory(question, answer_text, source_digest)
+                return answer_text
+
+            for call in tool_calls:
+                function_info = call.get("function", {})
+                name = function_info.get("name", "")
+                raw_args = function_info.get("arguments", "{}")
+                try:
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+                except json.JSONDecodeError:
+                    args = {}
+
+                tool_result = await self._run_tool(name, args or {})
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.get("id", ""),
+                        "name": name,
+                        "content": json.dumps(tool_result),
+                    }
+                )
+
+            second_payload = {
+                "model": settings.LM_STUDIO_MODEL,
+                "messages": messages,
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "max_tokens": 700,
+            }
+
+            async with httpx.AsyncClient(timeout=75.0) as client:
+                second = await client.post(
+                    url, json=second_payload, headers=self._auth_headers()
+                )
+                second.raise_for_status()
+                second_data = second.json()
+
+            final_message = second_data["choices"][0]["message"]
+            answer_text = self._message_content_to_text(final_message.get("content", ""))
+            self._store_response_memory(question, answer_text, source_digest)
+            return answer_text
+
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 400:
+                # Some LM Studio model backends do not support tool-calling yet.
+                # Retry without tools so Trainer remains usable.
+                fallback_payload = {
+                    "model": settings.LM_STUDIO_MODEL,
+                    "messages": messages,
+                    "temperature": 1.0,
+                    "top_p": 0.95,
+                    "max_tokens": 700,
+                }
+                try:
+                    async with httpx.AsyncClient(timeout=75.0) as client:
+                        fallback = await client.post(
+                            url,
+                            json=fallback_payload,
+                            headers=self._auth_headers(),
+                        )
+                        fallback.raise_for_status()
+                        fallback_data = fallback.json()
+                    fallback_message = fallback_data["choices"][0]["message"]
+                    answer_text = self._message_content_to_text(
+                        fallback_message.get("content", "")
+                    )
+                    self._store_response_memory(question, answer_text, source_digest)
+                    return answer_text
+                except Exception:
+                    return (
+                        "Trainer attempted LM Studio tool-calling but the backend rejected "
+                        "the request. Enable tool-calling support in LM Studio/model settings "
+                        "or use a tool-capable model."
+                    )
+            if exc.response.status_code == 401:
+                return (
+                    "Trainer agent could not authenticate with LM Studio (401). "
+                    "Check LLM_API_KEY in rag_backend/.env and LM Studio server auth settings."
+                )
+            return (
+                f"Trainer agent request failed with status {exc.response.status_code}. "
+                "Check LM Studio server/model settings and try again."
+            )
+        except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
+            return (
+                "Trainer agent could not reach LM Studio. "
+                "Start LM Studio server at http://localhost:1234 and retry."
+            )

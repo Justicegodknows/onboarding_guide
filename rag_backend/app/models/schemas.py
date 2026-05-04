@@ -18,3 +18,12 @@ class DocumentUploadResponse(BaseModel):
 class OnboardingProgress(BaseModel):
     step: int
     status: str
+
+
+class TrainerRequest(BaseModel):
+    question: str
+    history: Optional[List[str]] = None
+
+
+class TrainerResponse(BaseModel):
+    answer: str
