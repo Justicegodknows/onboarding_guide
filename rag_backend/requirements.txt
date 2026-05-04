@@ -11,3 +11,7 @@ python-docx
 pypdf
 mcp
 httpx
+pytesseract
+Pillow
+openai-whisper
+ffmpeg-python

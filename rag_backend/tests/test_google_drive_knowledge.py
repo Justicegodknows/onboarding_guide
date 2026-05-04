@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 
 
@@ -43,15 +45,150 @@ def test_build_media_metadata_text_includes_core_fields():
     assert "Open link" in text
 
 
-def test_download_file_text_uses_media_metadata_for_images():
+# ---------------------------------------------------------------------------
+# Image OCR tests
+# ---------------------------------------------------------------------------
+
+def test_extract_image_ocr_returns_text_when_ocr_available():
+    """When pytesseract is available, extracted text is returned."""
+    fake_image = MagicMock()
+    with (
+        patch("app.services.google_drive_knowledge._OCR_AVAILABLE", True),
+        patch("app.services.google_drive_knowledge._PILImage") as mock_pil,
+        patch("app.services.google_drive_knowledge.pytesseract") as mock_tess,
+    ):
+        mock_pil.open.return_value = fake_image
+        mock_tess.image_to_string.return_value = "  Welcome to the company!  "
+        result = GoogleDriveKnowledgeService._extract_image_ocr(b"fake-image-bytes")
+    assert result == "Welcome to the company!"
+
+
+def test_extract_image_ocr_returns_empty_when_unavailable():
+    """When pytesseract is not installed, returns empty string."""
+    with patch("app.services.google_drive_knowledge._OCR_AVAILABLE", False):
+        result = GoogleDriveKnowledgeService._extract_image_ocr(b"fake")
+    assert result == ""
+
+
+def test_download_file_text_returns_ocr_text_for_image():
+    """_download_file_text uses OCR result when OCR succeeds for image files."""
     service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
-    text = service._download_file_text(
-        {
-            "id": "img-id",
-            "name": "org-chart.png",
-            "mimeType": "image/png",
-            "webViewLink": "https://drive.google.com/file/d/img-id/view",
-        }
-    )
-    assert "image/png" in text
-    assert "org-chart.png" in text
+    file_meta = {
+        "id": "img-id",
+        "name": "org-chart.png",
+        "mimeType": "image/png",
+        "webViewLink": "https://drive.google.com/file/d/img-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"png-bytes"),
+        patch.object(service, "_extract_image_ocr", return_value="CEO: Alice\nCTO: Bob"),
+    ):
+        text = service._download_file_text(file_meta)
+    assert text == "CEO: Alice\nCTO: Bob"
+
+
+def test_download_file_text_falls_back_to_metadata_when_ocr_empty():
+    """_download_file_text returns metadata fallback when OCR yields nothing."""
+    service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
+    file_meta = {
+        "id": "img-id",
+        "name": "logo.jpg",
+        "mimeType": "image/jpeg",
+        "webViewLink": "https://drive.google.com/file/d/img-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"jpg-bytes"),
+        patch.object(service, "_extract_image_ocr", return_value=""),
+    ):
+        text = service._download_file_text(file_meta)
+    assert "image/jpeg" in text
+    assert "logo.jpg" in text
+
+
+# ---------------------------------------------------------------------------
+# Audio transcription tests
+# ---------------------------------------------------------------------------
+
+def test_transcribe_audio_bytes_returns_empty_when_whisper_unavailable():
+    with patch("app.services.google_drive_knowledge._WHISPER_AVAILABLE", False):
+        result = GoogleDriveKnowledgeService._transcribe_audio_bytes(b"audio")
+    assert result == ""
+
+
+def test_download_file_text_returns_transcript_for_audio():
+    """_download_file_text uses Whisper transcript for audio files."""
+    service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
+    file_meta = {
+        "id": "aud-id",
+        "name": "training.mp3",
+        "mimeType": "audio/mpeg",
+        "webViewLink": "https://drive.google.com/file/d/aud-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"mp3-bytes"),
+        patch.object(service, "_transcribe_audio_bytes", return_value="Hello and welcome."),
+    ):
+        text = service._download_file_text(file_meta)
+    assert text == "Hello and welcome."
+
+
+def test_download_file_text_falls_back_to_metadata_when_transcript_empty():
+    """_download_file_text returns metadata fallback when transcription yields nothing."""
+    service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
+    file_meta = {
+        "id": "aud-id",
+        "name": "silence.wav",
+        "mimeType": "audio/wav",
+        "webViewLink": "https://drive.google.com/file/d/aud-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"wav-bytes"),
+        patch.object(service, "_transcribe_audio_bytes", return_value=""),
+    ):
+        text = service._download_file_text(file_meta)
+    assert "audio/wav" in text
+    assert "silence.wav" in text
+
+
+# ---------------------------------------------------------------------------
+# Video transcription tests
+# ---------------------------------------------------------------------------
+
+def test_extract_video_transcription_returns_empty_when_whisper_unavailable():
+    with patch("app.services.google_drive_knowledge._WHISPER_AVAILABLE", False):
+        result = GoogleDriveKnowledgeService._extract_video_transcription(b"video")
+    assert result == ""
+
+
+def test_download_file_text_returns_transcript_for_video():
+    """_download_file_text uses Whisper transcript for video files."""
+    service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
+    file_meta = {
+        "id": "vid-id",
+        "name": "onboarding.mp4",
+        "mimeType": "video/mp4",
+        "webViewLink": "https://drive.google.com/file/d/vid-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"mp4-bytes"),
+        patch.object(service, "_extract_video_transcription", return_value="Welcome aboard!"),
+    ):
+        text = service._download_file_text(file_meta)
+    assert text == "Welcome aboard!"
+
+
+def test_download_file_text_falls_back_to_metadata_when_video_transcript_empty():
+    service = GoogleDriveKnowledgeService(api_key="dummy", folder_id="dummy")
+    file_meta = {
+        "id": "vid-id",
+        "name": "demo.webm",
+        "mimeType": "video/webm",
+        "webViewLink": "https://drive.google.com/file/d/vid-id/view",
+    }
+    with (
+        patch.object(service, "_request_bytes", return_value=b"webm-bytes"),
+        patch.object(service, "_extract_video_transcription", return_value=""),
+    ):
+        text = service._download_file_text(file_meta)
+    assert "video/webm" in text
+    assert "demo.webm" in text

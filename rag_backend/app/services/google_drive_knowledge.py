@@ -1,4 +1,8 @@
+import logging
+import os
 import re
+import subprocess
+import tempfile
 from io import BytesIO
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -9,12 +13,30 @@ from pypdf import PdfReader
 from app.core.config import settings
 from app.services.chunk_documents import chunk_text
 
+try:
+    import pytesseract
+    from PIL import Image as _PILImage
+    _OCR_AVAILABLE = True
+except ImportError:
+    _OCR_AVAILABLE = False
+
+try:
+    import whisper as _whisper_mod
+    _WHISPER_AVAILABLE = True
+except ImportError:
+    _WHISPER_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
 
 DRIVE_API_BASE = "https://www.googleapis.com/drive/v3"
 
 
 class GoogleDriveKnowledgeService:
     """Fetch and chunk public Google Drive folder content for RAG ingestion."""
+
+    WHISPER_MODEL_SIZE: str = "tiny"
+    _whisper_model: Optional[Any] = None  # class-level lazy cache
 
     EXPORT_MIME_MAP = {
         "application/vnd.google-apps.document": "text/plain",
@@ -153,9 +175,98 @@ class GoogleDriveKnowledgeService:
         if web_link:
             lines.append(f"Open link: {web_link}")
         lines.append(
-            "Note: This is binary media. Text transcript/OCR extraction is not enabled in this ingestion path yet."
+            "Note: OCR/transcription was unavailable or returned no text. Access the file directly via the link above."
         )
         return "\n".join(lines)
+
+    @staticmethod
+    def _extract_image_ocr(content: bytes) -> str:
+        """Run Tesseract OCR on image bytes. Returns empty string if unavailable or unsuccessful."""
+        if not _OCR_AVAILABLE:
+            logger.debug("pytesseract/Pillow not installed; skipping OCR.")
+            return ""
+        try:
+            image = _PILImage.open(BytesIO(content))
+            text = pytesseract.image_to_string(image)
+            return text.strip()
+        except Exception as exc:
+            logger.warning("OCR failed: %s", exc)
+            return ""
+
+    @classmethod
+    def _get_whisper_model(cls) -> Any:
+        """Lazy-load and cache the Whisper model at class level."""
+        if not _WHISPER_AVAILABLE:
+            raise RuntimeError("openai-whisper is not installed.")
+        if cls._whisper_model is None:
+            logger.info(
+                "Loading Whisper model '%s' (may download ~%s on first run)…",
+                cls.WHISPER_MODEL_SIZE,
+                {"tiny": "72 MB", "base": "142 MB"}.get(cls.WHISPER_MODEL_SIZE, "?"),
+            )
+            cls._whisper_model = _whisper_mod.load_model(cls.WHISPER_MODEL_SIZE)
+        return cls._whisper_model
+
+    @classmethod
+    def _transcribe_audio_bytes(cls, audio_bytes: bytes, suffix: str = ".wav") -> str:
+        """Transcribe raw audio bytes with Whisper. Returns empty string on failure."""
+        if not _WHISPER_AVAILABLE:
+            logger.debug("openai-whisper not installed; skipping transcription.")
+            return ""
+        tmp_path = ""
+        try:
+            model = cls._get_whisper_model()
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = tmp.name
+            result = model.transcribe(tmp_path)
+            return (result.get("text") or "").strip()
+        except Exception as exc:
+            logger.warning("Audio transcription failed: %s", exc)
+            return ""
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    @classmethod
+    def _extract_video_transcription(cls, video_bytes: bytes, src_suffix: str = ".mp4") -> str:
+        """Extract audio from video with ffmpeg, then transcribe with Whisper."""
+        if not _WHISPER_AVAILABLE:
+            logger.debug("openai-whisper not installed; skipping video transcription.")
+            return ""
+        video_path = ""
+        audio_path = ""
+        try:
+            with tempfile.NamedTemporaryFile(suffix=src_suffix, delete=False) as vtmp:
+                vtmp.write(video_bytes)
+                video_path = vtmp.name
+            audio_path = video_path + ".audio.wav"
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-i", video_path,
+                    "-vn", "-acodec", "pcm_s16le",
+                    "-ar", "16000", "-ac", "1",
+                    audio_path,
+                ],
+                capture_output=True,
+                check=True,
+            )
+            with open(audio_path, "rb") as af:
+                audio_bytes = af.read()
+            return cls._transcribe_audio_bytes(audio_bytes, suffix=".wav")
+        except subprocess.CalledProcessError as exc:
+            logger.warning(
+                "ffmpeg audio extraction failed: %s",
+                exc.stderr.decode(errors="ignore"),
+            )
+            return ""
+        except Exception as exc:
+            logger.warning("Video transcription failed: %s", exc)
+            return ""
+        finally:
+            for p in (video_path, audio_path):
+                if p and os.path.exists(p):
+                    os.unlink(p)
 
     @staticmethod
     def _extract_docx_text(content: bytes) -> str:
@@ -207,8 +318,31 @@ class GoogleDriveKnowledgeService:
             )
             return self._extract_docx_text(content)
 
-        if mime_type.startswith("image/") or mime_type.startswith("video/") or mime_type.startswith("audio/"):
-            return self._build_media_metadata_text(file_meta)
+        if mime_type.startswith("image/"):
+            content = self._request_bytes(
+                f"/files/{file_id}",
+                {"alt": "media", "supportsAllDrives": "true"},
+            )
+            ocr_text = self._extract_image_ocr(content)
+            return ocr_text if ocr_text else self._build_media_metadata_text(file_meta)
+
+        if mime_type.startswith("audio/"):
+            content = self._request_bytes(
+                f"/files/{file_id}",
+                {"alt": "media", "supportsAllDrives": "true"},
+            )
+            ext = "." + mime_type.split("/")[-1].split(";")[0]
+            transcript = self._transcribe_audio_bytes(content, suffix=ext)
+            return transcript if transcript else self._build_media_metadata_text(file_meta)
+
+        if mime_type.startswith("video/"):
+            content = self._request_bytes(
+                f"/files/{file_id}",
+                {"alt": "media", "supportsAllDrives": "true"},
+            )
+            ext = "." + mime_type.split("/")[-1].split(";")[0]
+            transcript = self._extract_video_transcription(content, src_suffix=ext)
+            return transcript if transcript else self._build_media_metadata_text(file_meta)
 
         return ""
 
