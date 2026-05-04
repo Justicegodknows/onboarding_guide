@@ -61,6 +61,24 @@ class TrainerSubAgent:
             headers["Authorization"] = f"Bearer {settings.LLM_API_KEY.strip()}"
         return headers
 
+    async def _post_chat_completion(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Post a completion request, retrying once without auth if LM Studio returns 401."""
+        headers = self._auth_headers()
+        response = await client.post(url, json=payload, headers=headers)
+        if response.status_code == 401 and "Authorization" in headers:
+            response = await client.post(
+                url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+        response.raise_for_status()
+        return response.json()
+
     def _tool_specs(self) -> List[Dict[str, Any]]:
         return [
             {
@@ -588,9 +606,7 @@ class TrainerSubAgent:
 
         try:
             async with httpx.AsyncClient(timeout=75.0) as client:
-                first = await client.post(url, json=payload, headers=self._auth_headers())
-                first.raise_for_status()
-                first_data = first.json()
+                first_data = await self._post_chat_completion(client, url, payload)
 
             first_message = first_data["choices"][0]["message"]
             tool_calls = first_message.get("tool_calls") or []
@@ -636,11 +652,9 @@ class TrainerSubAgent:
             }
 
             async with httpx.AsyncClient(timeout=75.0) as client:
-                second = await client.post(
-                    url, json=second_payload, headers=self._auth_headers()
+                second_data = await self._post_chat_completion(
+                    client, url, second_payload
                 )
-                second.raise_for_status()
-                second_data = second.json()
 
             final_message = second_data["choices"][0]["message"]
             answer_text = self._message_content_to_text(final_message.get("content", ""))
@@ -660,13 +674,11 @@ class TrainerSubAgent:
                 }
                 try:
                     async with httpx.AsyncClient(timeout=75.0) as client:
-                        fallback = await client.post(
+                        fallback_data = await self._post_chat_completion(
+                            client,
                             url,
-                            json=fallback_payload,
-                            headers=self._auth_headers(),
+                            fallback_payload,
                         )
-                        fallback.raise_for_status()
-                        fallback_data = fallback.json()
                     fallback_message = fallback_data["choices"][0]["message"]
                     answer_text = self._message_content_to_text(
                         fallback_message.get("content", "")

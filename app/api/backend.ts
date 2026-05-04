@@ -12,7 +12,16 @@ export async function sendChat(question: string, history: string[] = []) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, history }),
     });
-    if (!res.ok) throw new Error('Chat failed');
+    if (!res.ok) {
+        let detail = '';
+        try {
+            const data = await res.json();
+            detail = data?.detail || data?.message || JSON.stringify(data);
+        } catch {
+            detail = await res.text();
+        }
+        throw new Error(`Chat failed (${res.status}): ${detail || 'Unknown error'}`);
+    }
     return res.json();
 }
 
@@ -22,6 +31,15 @@ export async function sendTrainerChat(question: string, history: string[] = []) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, history }),
     });
-    if (!res.ok) throw new Error('Trainer chat failed');
+    if (!res.ok) {
+        let detail = '';
+        try {
+            const data = await res.json();
+            detail = data?.detail || data?.message || JSON.stringify(data);
+        } catch {
+            detail = await res.text();
+        }
+        throw new Error(`Trainer chat failed (${res.status}): ${detail || 'Unknown error'}`);
+    }
     return res.json();
 }

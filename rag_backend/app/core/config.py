@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings
 from typing import List
+from pathlib import Path
+
+
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 class Settings(BaseSettings):
     # Legacy Hugging Face settings are disabled; all generation routes through LM Studio.
@@ -20,7 +24,7 @@ class Settings(BaseSettings):
     LM_STUDIO_USE_MCP: bool = False
 
     class Config:
-        env_file = ".env"
+        env_file = str(ENV_FILE)
         extra = "ignore"
 
 settings = Settings()
