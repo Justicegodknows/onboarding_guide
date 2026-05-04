@@ -9,8 +9,5 @@ router = APIRouter(prefix="/api/v1/chat")
 async def chat_endpoint(request: ChatRequest):
     rag = RAGService()
     context = ""  # TODO: replace with real retrieval result from rag.retrieve(request.question)
-    try:
-        answer = await rag.generate(context, request.question)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LM Studio error: {e}")
+    answer = await rag.generate(context, request.question)
     return ChatResponse(answer=answer)

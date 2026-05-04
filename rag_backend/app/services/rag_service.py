@@ -55,16 +55,10 @@ class RAGService:
 
     async def generate(self, context: str, question: str) -> str:
         """
-        Generate an answer using the configured LLM provider.
+        Generate an answer using the LM Studio HTTP endpoint only.
 
-        LLM_PROVIDER=lmstudio (default):
-            google/gemma-4-E4B-it must be loaded in LM Studio with the server
-            started on port 1234. Routes to MCP (LM_STUDIO_USE_MCP=true) or
-            the plain OpenAI-compatible endpoint (LM_STUDIO_USE_MCP=false).
-
-        LLM_PROVIDER=huggingface:
-            Runs google/gemma-4-E4B-it locally via the transformers library using
-            AutoProcessor + AutoModelForCausalLM. Requires sufficient RAM/VRAM.
+        google/gemma-4-E4B-it must be loaded in LM Studio with the server
+        started on port 1234.
         """
         from app.core.config import settings
 
@@ -81,14 +75,43 @@ class RAGService:
             },
         ]
 
-        if settings.LLM_PROVIDER == "huggingface":
-            return await self._generate_via_transformers(messages, settings)
+        try:
+            return await self._generate_via_openai_compat(messages, settings)
+        except Exception as exc:
+            import httpx
 
-        # lmstudio provider
-        if settings.LM_STUDIO_USE_MCP:
-            return await self._generate_via_mcp(messages, settings)
-        return await self._generate_via_openai_compat(messages, settings)
+            _UNAVAILABLE = (
+                "The AI model is currently unavailable. "
+                "Please start LM Studio, load google/gemma-4-E4B-it, and start "
+                "the server on port 1234, then try again."
+            )
+            _UNAUTHORIZED = (
+                "LM Studio rejected the request with 401 Unauthorized. "
+                "Check the LM Studio server settings and any required API key, "
+                "then try again."
+            )
+            if isinstance(exc, httpx.HTTPStatusError):
+                if exc.response.status_code == 401:
+                    return _UNAUTHORIZED
+                return (
+                    f"LM Studio request failed with status {exc.response.status_code}. "
+                    "Check the LM Studio server and model configuration, then try again."
+                )
+            # httpx connection errors (OpenAI-compat path)
+            if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+                return _UNAVAILABLE
+            # Raw socket errors from the local HTTP transport layer
+            if isinstance(exc, OSError):
+                return _UNAVAILABLE
+            # ExceptionGroup wrapping a connection error
+            causes = getattr(exc, "exceptions", None)
+            if causes and any(isinstance(e, OSError) for e in causes):
+                return _UNAVAILABLE
+            raise
 
+    # Hugging Face/local transformers support is intentionally disabled.
+    # Keep this implementation commented out for now so all responses route
+    # through LM Studio.
     async def _generate_via_transformers(self, messages: list, settings) -> str:
         """
         Run google/gemma-4-E4B-it locally using AutoProcessor + AutoModelForCausalLM.
@@ -132,39 +155,14 @@ class RAGService:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _run)
 
-    async def _generate_via_mcp(self, messages: list, settings) -> str:
-        """Use LM Studio's MCP SSE endpoint (supports tool-calling)."""
-        from mcp import ClientSession
-        from mcp.client.sse import sse_client
-        from mcp.types import TextContent, SamplingMessage
-
-        # Combine all messages into a single user prompt for MCP sampling
-        prompt = "\n".join(
-            f"{m['role'].capitalize()}: {m['content']}" for m in messages
-        )
-
-        async with sse_client(settings.LM_STUDIO_MCP_URL) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.create_message(
-                    messages=[
-                        SamplingMessage(
-                            role="user",
-                            content=TextContent(type="text", text=prompt),
-                        )
-                    ],
-                    max_tokens=512,
-                )
-                content = result.content
-                if hasattr(content, "text"):
-                    return content.text
-                return str(content)
-
     async def _generate_via_openai_compat(self, messages: list, settings) -> str:
         """Use LM Studio's OpenAI-compatible REST API (/v1/chat/completions)."""
         import httpx
 
         url = f"{settings.LM_STUDIO_BASE_URL}/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
+        if settings.LLM_API_KEY and settings.LLM_API_KEY.strip():
+            headers["Authorization"] = f"Bearer {settings.LLM_API_KEY.strip()}"
         payload = {
             "model": settings.LM_STUDIO_MODEL,
             "messages": messages,
@@ -173,7 +171,7 @@ class RAGService:
             "top_p": 0.95,
         }
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
             return data["choices"][0]["message"]["content"].strip()
