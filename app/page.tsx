@@ -1,28 +1,11 @@
 "use client";
-import Image from "next/image";
 import { useState } from "react";
-import { healthCheck } from "./api/backend";
 import ChatBox from "./components/ChatBox";
 import SideMenu from "./components/SideMenu";
 import { departments } from "./components/departments";
 
 export default function Home() {
-  const [health, setHealth] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [selectedDept, setSelectedDept] = useState(departments[0].id);
-
-  async function checkHealth() {
-    setLoading(true);
-    setHealth(null);
-    try {
-      const res = await healthCheck();
-      setHealth(JSON.stringify(res));
-    } catch (e: any) {
-      setHealth(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const dept = departments.find((d) => d.id === selectedDept);
 
@@ -44,21 +27,6 @@ export default function Home() {
             <div className="text-zinc-500 dark:text-zinc-400 text-sm">{dept?.info}</div>
           </section>
 
-          {health && (
-            <pre className="mt-4 p-2 bg-zinc-100 text-zinc-800 rounded text-left max-w-md overflow-x-auto">
-              {health}
-            </pre>
-          )}
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              checkHealth();
-            }}
-            className="mt-4 inline-flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            {loading ? "Checking..." : "Check Backend Health"}
-          </a>
           <ChatBox department={dept?.name || ""} />
         </div>
       </main>
