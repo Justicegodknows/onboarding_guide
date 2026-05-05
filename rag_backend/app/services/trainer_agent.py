@@ -842,6 +842,89 @@ class TrainerSubAgent:
             return cleaned
         return cleaned[: max_chars - 3].rstrip() + "..."
 
+    async def _answer_via_ollama(
+        self,
+        messages: List[Dict[str, Any]],
+        question: str,
+        source_digest: str,
+    ) -> str:
+        """Run the full trainer answer pipeline against Ollama (LM Studio fallback)."""
+        url = f"{settings.OLLAMA_BASE_URL}/v1/chat/completions"
+        ollama_headers = {"Content-Type": "application/json"}
+
+        local_messages = list(messages)
+        payload: Dict[str, Any] = {
+            "model": settings.OLLAMA_MODEL,
+            "messages": local_messages,
+            "tools": self._tool_specs(),
+            "tool_choice": "auto",
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "max_tokens": 700,
+        }
+
+        async with httpx.AsyncClient(timeout=75.0) as client:
+            first_resp = await client.post(url, json=payload, headers=ollama_headers)
+            if first_resp.status_code == 400:
+                # Model does not support tool-calling; retry without tools.
+                no_tools_payload = {
+                    k: v for k, v in payload.items() if k not in ("tools", "tool_choice")
+                }
+                first_resp = await client.post(
+                    url, json=no_tools_payload, headers=ollama_headers
+                )
+            first_resp.raise_for_status()
+            first_data = first_resp.json()
+
+        first_message = first_data["choices"][0]["message"]
+        tool_calls = first_message.get("tool_calls") or []
+
+        local_messages.append(
+            {
+                "role": "assistant",
+                "content": first_message.get("content", ""),
+                "tool_calls": tool_calls,
+            }
+        )
+
+        if not tool_calls:
+            return self._message_content_to_text(first_message.get("content", ""))
+
+        for call in tool_calls:
+            function_info = call.get("function", {})
+            name = function_info.get("name", "")
+            raw_args = function_info.get("arguments", "{}")
+            try:
+                args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            except json.JSONDecodeError:
+                args = {}
+            tool_result = await self._run_tool(name, args or {})
+            local_messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": call.get("id", ""),
+                    "name": name,
+                    "content": json.dumps(tool_result),
+                }
+            )
+
+        second_payload = {
+            "model": settings.OLLAMA_MODEL,
+            "messages": local_messages,
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "max_tokens": 700,
+        }
+        async with httpx.AsyncClient(timeout=75.0) as client:
+            second_resp = await client.post(
+                url, json=second_payload, headers=ollama_headers
+            )
+            second_resp.raise_for_status()
+            second_data = second_resp.json()
+
+        final_message = second_data["choices"][0]["message"]
+        return self._message_content_to_text(final_message.get("content", ""))
+
     def _build_offline_fallback_answer(self, question: str) -> str:
         google_drive_hits = self._search_google_drive_knowledge(question, limit=3)
         training_hits = self._search_training_data(question, limit=3)
@@ -869,12 +952,14 @@ class TrainerSubAgent:
 
         if not evidence_lines:
             return (
-                "LM Studio is unavailable right now, and no indexed Trainer knowledge matched your question yet. "
+                "Both LM Studio and Ollama are unavailable, and no indexed Trainer knowledge "
+                "matched your question yet. "
                 "Try rephrasing with specific keywords or ingesting/updating knowledge sources, then retry."
             )
 
         intro = (
-            "LM Studio is unavailable, so this answer was generated from indexed Trainer knowledge only. "
+            "Both LM Studio and Ollama are unavailable, so this answer was generated "
+            "from indexed Trainer knowledge only. "
             "Please verify critical details before acting."
         )
         response = (
@@ -938,6 +1023,10 @@ class TrainerSubAgent:
             "top_p": 0.95,
             "max_tokens": 700,
         }
+
+        # Snapshot clean messages before any mutation so Ollama fallback
+        # always starts from the original prompt.
+        messages_for_fallback = list(messages)
 
         try:
             async with httpx.AsyncClient(timeout=75.0) as client:
@@ -1021,21 +1110,45 @@ class TrainerSubAgent:
                     self._store_response_memory(question, answer_text, source_digest)
                     return answer_text
                 except Exception:
-                    return (
-                        "Trainer attempted LM Studio tool-calling but the backend rejected "
-                        "the request. Enable tool-calling support in LM Studio/model settings "
-                        "or use a tool-capable model."
-                    )
+                    try:
+                        answer_text = await self._answer_via_ollama(
+                            messages_for_fallback, question, source_digest
+                        )
+                        self._store_response_memory(question, answer_text, source_digest)
+                        return answer_text
+                    except Exception:
+                        return (
+                            "Trainer attempted LM Studio tool-calling but the backend rejected "
+                            "the request, and Ollama fallback was unavailable. "
+                            "Enable tool-calling support in LM Studio/model settings "
+                            "or ensure Ollama is running with gemma4."
+                        )
             if exc.response.status_code == 401:
-                return (
-                    "Trainer agent could not authenticate with LM Studio (401). "
-                    "Check LLM_API_KEY in rag_backend/.env and LM Studio server auth settings."
-                )
+                try:
+                    answer_text = await self._answer_via_ollama(
+                        messages_for_fallback, question, source_digest
+                    )
+                    self._store_response_memory(question, answer_text, source_digest)
+                    return answer_text
+                except Exception:
+                    return (
+                        "Trainer agent could not authenticate with LM Studio (401), and "
+                        "Ollama fallback was unavailable. Check LLM_API_KEY in "
+                        "rag_backend/.env, LM Studio auth settings, and Ollama status."
+                    )
             return (
                 f"Trainer agent request failed with status {exc.response.status_code}. "
                 "Check LM Studio server/model settings and try again."
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
-            answer_text = self._build_offline_fallback_answer(question)
-            self._store_response_memory(question, answer_text, source_digest)
-            return answer_text
+            # LM Studio unreachable — try Ollama before going fully offline.
+            try:
+                answer_text = await self._answer_via_ollama(
+                    messages_for_fallback, question, source_digest
+                )
+                self._store_response_memory(question, answer_text, source_digest)
+                return answer_text
+            except Exception:
+                answer_text = self._build_offline_fallback_answer(question)
+                self._store_response_memory(question, answer_text, source_digest)
+                return answer_text

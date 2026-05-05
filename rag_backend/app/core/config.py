@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     LM_STUDIO_MODEL: str = "google/gemma-4-E4B-it"
     LM_STUDIO_USE_MCP: bool = False
 
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "gemma4"
+
     # Google Drive-backed knowledge base (primary source for ingestion)
     GOOGLE_DRIVE_FOLDER_URL: str = (
         "https://drive.google.com/drive/folders/"
