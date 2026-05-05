@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_CHUNK_SIZE: int = 1200
     GOOGLE_DRIVE_MAX_FILES: int = 200
 
+    # YouTube-backed knowledge ingestion source
+    YOUTUBE_CHANNEL: str = ""
+    YOUTUBE_MAX_VIDEOS: int = 25
+    YOUTUBE_CHUNK_SIZE: int = 1200
+
     class Config:
         env_file = str(ENV_FILE)
         extra = "ignore"

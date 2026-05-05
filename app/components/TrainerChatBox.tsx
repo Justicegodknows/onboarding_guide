@@ -7,7 +7,12 @@ interface Message {
     text: string;
 }
 
-export default function TrainerChatBox() {
+interface TrainerChatBoxProps {
+    title?: string;
+    onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
+}
+
+export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
     const [open, setOpen] = useState(false);
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
@@ -30,7 +35,8 @@ export default function TrainerChatBox() {
         setMessages((prev) => [...prev, { role: "user", text: question }]);
         setLoading(true);
         try {
-            const res = await sendTrainerChat(question, history);
+            const sender = onSend ?? sendTrainerChat;
+            const res = await sender(question, history);
             const answer: string = res.answer;
             setMessages((prev) => [...prev, { role: "trainer", text: answer }]);
             setHistory((prev) => [...prev, question]);
@@ -54,7 +60,7 @@ export default function TrainerChatBox() {
                 className="w-full flex items-center justify-between px-3 py-2 rounded bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-sm font-semibold transition-colors"
                 onClick={() => setOpen((v) => !v)}
             >
-                <span>🎓 Trainer Assistant</span>
+                <span>{title ?? "🎓 Trainer Assistant"}</span>
                 <span className="text-xs">{open ? "▲" : "▼"}</span>
             </button>
 
@@ -68,8 +74,8 @@ export default function TrainerChatBox() {
                             <div
                                 key={i}
                                 className={`rounded px-2 py-1 max-w-[90%] whitespace-pre-wrap ${msg.role === "user"
-                                        ? "self-end bg-blue-600 text-white"
-                                        : "self-start bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                                    ? "self-end bg-blue-600 text-white"
+                                    : "self-start bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                                     }`}
                             >
                                 {msg.text}

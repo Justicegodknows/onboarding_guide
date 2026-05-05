@@ -27,3 +27,17 @@ class TrainerRequest(BaseModel):
 
 class TrainerResponse(BaseModel):
     answer: str
+
+
+class DepartmentInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+    info: str
+    persona_system_prompt: str
+    trainer_persona_prompt: str
+
+
+class DepartmentChatRequest(BaseModel):
+    question: str
+    history: Optional[List[str]] = None

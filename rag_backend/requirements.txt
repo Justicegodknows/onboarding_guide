@@ -15,3 +15,6 @@ pytesseract
 Pillow
 openai-whisper
 ffmpeg-python
+youtube-transcript-api
+pytest
+pytest-asyncio

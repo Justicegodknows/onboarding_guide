@@ -835,10 +835,61 @@ class TrainerSubAgent:
             return "\n".join(parts).strip()
         return str(content)
 
+    @staticmethod
+    def _compact_text(text: str, max_chars: int = 420) -> str:
+        cleaned = re.sub(r"\s+", " ", (text or "").strip())
+        if len(cleaned) <= max_chars:
+            return cleaned
+        return cleaned[: max_chars - 3].rstrip() + "..."
+
+    def _build_offline_fallback_answer(self, question: str) -> str:
+        google_drive_hits = self._search_google_drive_knowledge(question, limit=3)
+        training_hits = self._search_training_data(question, limit=3)
+        core_hits = self._search_core_web_knowledge(question, limit=2)
+
+        evidence_lines: List[str] = []
+
+        for item in google_drive_hits.get("items", [])[:3]:
+            title = item.get("title") or item.get("source_url") or "Google Drive source"
+            snippet = self._compact_text(item.get("content_excerpt", ""))
+            if snippet:
+                evidence_lines.append(f"- Google Drive ({title}): {snippet}")
+
+        for item in training_hits.get("items", [])[:2]:
+            title = item.get("title") or item.get("topic") or item.get("chunk_id") or "Training data"
+            snippet = self._compact_text(item.get("content", ""))
+            if snippet:
+                evidence_lines.append(f"- Training data ({title}): {snippet}")
+
+        for item in core_hits.get("items", [])[:2]:
+            title = item.get("title") or item.get("source_url") or "Website source"
+            snippet = self._compact_text(item.get("content_excerpt", ""))
+            if snippet:
+                evidence_lines.append(f"- Website snapshot ({title}): {snippet}")
+
+        if not evidence_lines:
+            return (
+                "LM Studio is unavailable right now, and no indexed Trainer knowledge matched your question yet. "
+                "Try rephrasing with specific keywords or ingesting/updating knowledge sources, then retry."
+            )
+
+        intro = (
+            "LM Studio is unavailable, so this answer was generated from indexed Trainer knowledge only. "
+            "Please verify critical details before acting."
+        )
+        response = (
+            f"{intro}\n\n"
+            f"Question: {question}\n\n"
+            "Most relevant evidence:\n"
+            + "\n".join(evidence_lines)
+        )
+        return response
+
     async def answer(
         self,
         question: str,
         history: Optional[List[str]] = None,
+        system_prompt_override: Optional[str] = None,
     ) -> str:
         drive_refresh = await self._refresh_google_drive_sources()
         web_refresh = await self._refresh_core_sources()
@@ -853,11 +904,14 @@ class TrainerSubAgent:
             )
 
         system = (
-            "You are Trainer, a sub-agent focused on employee training. "
-            "You must treat the configured Google Drive folder as the primary knowledge base. "
-            "Use tool calls whenever external context is needed. "
-            "Prioritize Google Drive knowledge first, then local training data, "
-            "then core website snapshots, then other sources."
+            system_prompt_override
+            or (
+                "You are Trainer, a sub-agent focused on employee training. "
+                "You must treat the configured Google Drive folder as the primary knowledge base. "
+                "Use tool calls whenever external context is needed. "
+                "Prioritize Google Drive knowledge first, then local training data, "
+                "then core website snapshots, then other sources."
+            )
         )
 
         user_prompt = (
@@ -982,7 +1036,6 @@ class TrainerSubAgent:
                 "Check LM Studio server/model settings and try again."
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
-            return (
-                "Trainer agent could not reach LM Studio. "
-                "Start LM Studio server at http://localhost:1234 and retry."
-            )
+            answer_text = self._build_offline_fallback_answer(question)
+            self._store_response_memory(question, answer_text, source_digest)
+            return answer_text

@@ -1,35 +1,37 @@
-"use client";
-import { useState } from "react";
-import ChatBox from "./components/ChatBox";
-import SideMenu from "./components/SideMenu";
-import { departments } from "./components/departments";
+import Link from "next/link";
 
-export default function Home() {
-  const [selectedDept, setSelectedDept] = useState(departments[0].id);
+import { getDepartments } from "./api/backend";
 
-  const dept = departments.find((d) => d.id === selectedDept);
+export default async function Home() {
+  const departments = await getDepartments();
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-black font-sans">
-      <SideMenu selected={selectedDept} onSelect={setSelectedDept} />
-      <main className="flex flex-1 flex-col items-center justify-start py-16 px-8 bg-white dark:bg-black">
-        <div className="w-full max-w-3xl flex flex-col gap-6">
+    <main className="min-h-screen bg-zinc-50 dark:bg-black py-16 px-8 font-sans">
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-8">
+        <header>
           <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            Welcome to EUZ_HELP
+            Department Workspaces
           </h1>
-          <p className="text-lg leading-7 text-black/70 dark:text-zinc-400">
-            Your AI assistant for all things EUZ. Ask me anything about our products, services, or company!
+          <p className="text-lg leading-7 text-black/70 dark:text-zinc-400 mt-2">
+            Choose a department to open its dedicated workspace. Each workspace includes
+            direct access to the main chat agent and trainer sub-agent.
           </p>
+        </header>
 
-          <section className="my-4 p-4 rounded bg-zinc-100 dark:bg-zinc-900">
-            <h2 className="text-xl font-bold mb-2">{dept?.name}</h2>
-            <div className="mb-1 text-zinc-700 dark:text-zinc-300">{dept?.description}</div>
-            <div className="text-zinc-500 dark:text-zinc-400 text-sm">{dept?.info}</div>
-          </section>
-
-          <ChatBox department={dept?.name || ""} />
-        </div>
-      </main>
-    </div>
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {departments.map((department) => (
+            <Link
+              key={department.id}
+              href={`/departments/${department.id}`}
+              className="block rounded border bg-white dark:bg-zinc-900 p-5 hover:border-blue-400 transition-colors"
+            >
+              <h2 className="text-xl font-bold mb-2">{department.name}</h2>
+              <p className="text-zinc-700 dark:text-zinc-300 mb-2">{department.description}</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{department.info}</p>
+            </Link>
+          ))}
+        </section>
+      </div>
+    </main>
   );
 }

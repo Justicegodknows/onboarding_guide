@@ -4,9 +4,11 @@ import { sendChat } from "../api/backend";
 
 interface ChatBoxProps {
     department?: string;
+    title?: string;
+    onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
 }
 
-export default function ChatBox({ department }: ChatBoxProps) {
+export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
     const [question, setQuestion] = useState("");
     const [history, setHistory] = useState<string[]>([]);
     const [answer, setAnswer] = useState<string | null>(null);
@@ -20,9 +22,11 @@ export default function ChatBox({ department }: ChatBoxProps) {
         try {
             // Prepend department context to the question
             const deptQuestion = department ? `[${department}] ${question}` : question;
-            const res = await sendChat(deptQuestion, history);
+            const sender = onSend ?? sendChat;
+            const questionToSend = onSend ? question : deptQuestion;
+            const res = await sender(questionToSend, history);
             setAnswer(res.answer);
-            setHistory([...history, deptQuestion]);
+            setHistory([...history, questionToSend]);
             setQuestion("");
         } catch (e: any) {
             setError(e.message);
@@ -33,7 +37,7 @@ export default function ChatBox({ department }: ChatBoxProps) {
 
     return (
         <div className="w-full max-w-lg mx-auto mt-8 p-4 border rounded bg-white dark:bg-zinc-900">
-            <h2 className="text-xl font-semibold mb-2">Chat with RAG Agent</h2>
+            <h2 className="text-xl font-semibold mb-2">{title ?? "Chat with RAG Agent"}</h2>
             <div className="mb-2">
                 <input
                     className="w-full p-2 border rounded"

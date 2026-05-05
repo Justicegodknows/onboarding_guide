@@ -53,7 +53,7 @@ class RAGService:
         # Placeholder for retrieval logic
         pass
 
-    async def generate(self, context: str, question: str) -> str:
+    async def generate(self, context: str, question: str, system_prompt: str | None = None) -> str:
         """
         Generate an answer using the LM Studio HTTP endpoint only.
 
@@ -62,9 +62,12 @@ class RAGService:
         """
         from app.core.config import settings
 
-        system_prompt = "You are a helpful assistant for an employee onboarding guide."
+        resolved_system_prompt = (
+            system_prompt
+            or "You are a helpful assistant for an employee onboarding guide."
+        )
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": resolved_system_prompt},
             {
                 "role": "user",
                 "content": (
