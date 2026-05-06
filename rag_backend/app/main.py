@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, chat, documents, onboarding, ingest, trainer, departments
+from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments
 
 
 app = FastAPI()

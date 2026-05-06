@@ -952,13 +952,13 @@ class TrainerSubAgent:
 
         if not evidence_lines:
             return (
-                "Both LM Studio and Ollama are unavailable, and no indexed Trainer knowledge "
+                "LM Studio is unavailable and Ollama is unavailable, and no indexed Trainer knowledge "
                 "matched your question yet. "
                 "Try rephrasing with specific keywords or ingesting/updating knowledge sources, then retry."
             )
 
         intro = (
-            "Both LM Studio and Ollama are unavailable, so this answer was generated "
+            "LM Studio is unavailable and Ollama is unavailable, so this answer was generated "
             "from indexed Trainer knowledge only. "
             "Please verify critical details before acting."
         )

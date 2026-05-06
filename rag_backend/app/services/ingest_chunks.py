@@ -50,7 +50,7 @@ def ingest_chunks(
 
     ingest_source = (source or "").strip().lower()
     if ingest_source not in {"google_drive", "youtube", "local"}:
-        raise ValueError("source must be one of 'google_drive', 'youtube', or 'local'.")
+        raise ValueError("source must be either 'google_drive', 'youtube', or 'local'.")
 
     meta: Dict[str, Any] = {}
     if ingest_source == "google_drive":

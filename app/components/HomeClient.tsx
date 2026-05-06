@@ -1,0 +1,119 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+
+import type { DepartmentInfo } from "../api/backend";
+import ChatBox from "./ChatBox";
+
+interface HomeClientProps {
+    departments: DepartmentInfo[];
+}
+
+export default function HomeClient({ departments }: HomeClientProps) {
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
+    return (
+        <div className="relative min-h-screen bg-zinc-50 dark:bg-black py-16 px-6 md:px-8 font-sans overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 opacity-60">
+                <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-cyan-200/60 blur-3xl" />
+                <div className="absolute top-20 right-0 h-80 w-80 rounded-full bg-blue-200/50 blur-3xl" />
+            </div>
+
+            <div className="relative w-full max-w-5xl mx-auto flex flex-col gap-10">
+                <header className="text-left rounded-3xl border border-zinc-200/80 bg-white/85 backdrop-blur-sm p-8 shadow-xl">
+                    <p className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 bg-cyan-100 px-3 py-1 rounded-full mb-4">
+                        Private Knowledge AI
+                    </p>
+                    <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight text-black dark:text-zinc-50">
+                        VaultMind
+                    </h1>
+                    <p className="text-lg leading-7 text-black/70 dark:text-zinc-400 mt-3 max-w-3xl">
+                        Private, local-first AI assistant for internal company knowledge. Explore departmental workspaces,
+                        onboard faster, and chat with grounded responses from your document base.
+                    </p>
+                    <div className="flex flex-wrap gap-4 mt-6">
+                        <button
+                            onClick={() => setIsChatOpen((prev) => !prev)}
+                            className="px-8 py-3 bg-primary text-white rounded-full font-bold hover:bg-opacity-90 hover:-translate-y-0.5 transition-all shadow-xl"
+                        >
+                            {isChatOpen ? "Hide Assistant" : "Open Assistant"}
+                        </button>
+                        <Link
+                            href="/docs"
+                            className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
+                        >
+                            User Guide
+                        </Link>
+                    </div>
+                </header>
+
+                {isChatOpen && (
+                    <section className="w-full">
+                        <ChatBox title="VaultMind Assistant" />
+                    </section>
+                )}
+
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {departments.map((department) => (
+                        <Link
+                            key={department.id}
+                            href={`/departments/${department.id}`}
+                            className="block rounded-2xl border bg-white/90 dark:bg-zinc-900 p-6 hover:border-blue-400 hover:shadow-lg transition-all"
+                        >
+                            <h2 className="text-xl font-bold mb-2">{department.name}</h2>
+                            <p className="text-zinc-700 dark:text-zinc-300 mb-2">{department.description}</p>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">{department.info}</p>
+                        </Link>
+                    ))}
+                </section>
+
+                <section className="w-full max-w-4xl bg-zinc-100 p-8 rounded-3xl border border-zinc-200 text-left">
+                    <h2 className="text-2xl font-bold text-black mb-4">Who is VaultMind for?</h2>
+                    <p className="text-zinc-700 mb-6">
+                        Built for organizations that manage sensitive internal knowledge and need private AI workflows
+                        with secure, role-aware access.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-zinc-200">
+                            <span className="text-accent font-bold block mb-1">Operations Teams</span>
+                            <p className="text-sm text-zinc-600">Get consistent answers from policies, SOPs, and internal docs.</p>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-zinc-200">
+                            <span className="text-accent font-bold block mb-1">Compliance and IT</span>
+                            <p className="text-sm text-zinc-600">Keep documents local with secure infrastructure and governance.</p>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-zinc-200">
+                            <span className="text-accent font-bold block mb-1">New Employee Onboarding</span>
+                            <p className="text-sm text-zinc-600">Help hires find internal knowledge faster through guided Q&A.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
+                    <div className="p-8 rounded-3xl bg-primary text-white shadow-xl text-left ring-1 ring-white/10">
+                        <div className="text-3xl mb-4">🔒</div>
+                        <h3 className="text-xl font-bold mb-3">Local-First AI</h3>
+                        <p className="text-sm opacity-90 leading-relaxed">
+                            Data stays inside your environment across ingestion, retrieval, and answer generation.
+                        </p>
+                    </div>
+                    <div className="p-8 rounded-3xl bg-primary text-white shadow-xl text-left ring-1 ring-white/10">
+                        <div className="text-3xl mb-4">🧭</div>
+                        <h3 className="text-xl font-bold mb-3">Grounded Responses</h3>
+                        <p className="text-sm opacity-90 leading-relaxed">
+                            RAG answers are anchored to indexed company documents and source context.
+                        </p>
+                    </div>
+                    <div className="p-8 rounded-3xl bg-primary text-white shadow-xl text-left ring-1 ring-white/10">
+                        <div className="text-3xl mb-4">📚</div>
+                        <h3 className="text-xl font-bold mb-3">Department Workspaces</h3>
+                        <p className="text-sm opacity-90 leading-relaxed">
+                            Dedicated spaces provide focused prompts and assistant behavior per business unit.
+                        </p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+}
