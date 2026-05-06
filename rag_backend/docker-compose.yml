@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "8000:8000"
+    volumes:
+      - ./:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - CHROMA_URL=http://chroma:8100

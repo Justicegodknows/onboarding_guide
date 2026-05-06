@@ -18,3 +18,16 @@ ffmpeg-python
 youtube-transcript-api
 pytest
 pytest-asyncio
+python-multipart
+python-dotenv
+sqlalchemy
+psycopg2-binary
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+chromadb
+pymupdf
+python-jose[cryptography]
+passlib[bcrypt]
+ollama
