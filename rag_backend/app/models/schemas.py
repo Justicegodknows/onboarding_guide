@@ -18,3 +18,26 @@ class DocumentUploadResponse(BaseModel):
 class OnboardingProgress(BaseModel):
     step: int
     status: str
+
+
+class TrainerRequest(BaseModel):
+    question: str
+    history: Optional[List[str]] = None
+
+
+class TrainerResponse(BaseModel):
+    answer: str
+
+
+class DepartmentInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+    info: str
+    persona_system_prompt: str
+    trainer_persona_prompt: str
+
+
+class DepartmentChatRequest(BaseModel):
+    question: str
+    history: Optional[List[str]] = None

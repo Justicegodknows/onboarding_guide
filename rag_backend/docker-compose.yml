@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   api:
     build: .
@@ -7,10 +6,16 @@ services:
     volumes:
       - ./:/app
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5433/postgres
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - CHROMA_URL=http://chroma:8100
       - REDIS_URL=redis://redis:6379/0
       - LLM_API_KEY=${LLM_API_KEY}
+      - LM_STUDIO_BASE_URL=http://host.docker.internal:1234
+      - LM_STUDIO_MODEL=google/gemma-4-E4B-it
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=gemma4
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - postgres
       - chroma

@@ -13,6 +13,11 @@ try:
 except ImportError:  # Backward compatibility with older LangChain installs
     from langchain.docstore.document import Document
 
+import datetime
+from app.db import SessionLocal
+from app.models.knowledge_base import KnowledgeChunk
+
+
 class RAGService:
     def __init__(self):
         # Configuration from environment or defaults

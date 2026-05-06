@@ -1,0 +1,44 @@
+{
+  "_encoding": null,
+  "headers": [
+    [
+      "Date",
+      "Wed, 29 Apr 2026 13:07:44 GMT"
+    ],
+    [
+      "Set-Cookie",
+      "PHPSESSID=aed74f76437dcb25b428237de8f5f543; path=/"
+    ],
+    [
+      "Server",
+      "Apache/2.4.66 (Unix)"
+    ],
+    [
+      "Expires",
+      "Thu, 19 Nov 1981 08:52:00 GMT"
+    ],
+    [
+      "Vary",
+      "User-Agent"
+    ],
+    [
+      "X-Powered-By",
+      "PHP/8.4.20"
+    ],
+    [
+      "Content-Type",
+      "text/html; charset=UTF-8"
+    ],
+    [
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    ],
+    [
+      "Pragma",
+      "no-cache"
+    ]
+  ],
+  "status": 200,
+  "type": "HttpResponse",
+  "url": "https://www.e-u-z.de/bauphysik_experimente.html"
+}

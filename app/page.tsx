@@ -72,6 +72,7 @@ export default function Home() {
             A private AI knowledge assistant for organizations that need local,
             role-aware access to trusted company knowledge.
           </p>
+        </header>
 
           {/* --- WHO IT IS FOR --- */}
           <div className="w-full max-w-4xl mb-20 bg-zinc-100 p-8 rounded-3xl border border-zinc-200 text-left">

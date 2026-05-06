@@ -33,3 +33,25 @@ class KnowledgeSourceDocument(Base):
     filename = Column(String, unique=True, nullable=False)
     description = Column(Text)
     uploaded_at = Column(DateTime)
+
+
+class TrainerSourceSnapshot(Base):
+    __tablename__ = "trainer_source_snapshots"
+    id = Column(Integer, primary_key=True, index=True)
+    source_url = Column(String, unique=True, nullable=False)
+    source_type = Column(String, nullable=False)  # website | youtube | other
+    title = Column(String)
+    content = Column(Text)
+    content_hash = Column(String)
+    fetched_at = Column(DateTime)
+
+
+class TrainerResponseMemory(Base):
+    __tablename__ = "trainer_response_memory"
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(Text, nullable=False)
+    question_key = Column(String, unique=True, nullable=False)
+    answer = Column(Text, nullable=False)
+    source_digest = Column(Text)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
