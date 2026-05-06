@@ -8,7 +8,7 @@ from app.services.rag_service import RAGService
 from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 from app.services.youtube_knowledge import YouTubeKnowledgeService
 
-HELP_DIR = os.path.join(os.path.dirname(__file__), '../../../help')
+HELP_DIR = os.path.join(os.path.dirname(__file__), '../../help')
 CHUNKS_PATH = os.path.join(HELP_DIR, 'chunks.json')
 
 
@@ -23,8 +23,8 @@ def _load_google_drive_chunks() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     service = GoogleDriveKnowledgeService()
     if not service.configured:
         raise RuntimeError(
-            "Google Drive source is not configured. Set GOOGLE_DRIVE_API_KEY and "
-            "GOOGLE_DRIVE_FOLDER_ID/GOOGLE_DRIVE_FOLDER_URL."
+            "Google Drive source is not configured. Set GOOGLE_DRIVE_API_KEY or "
+            "GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE, plus GOOGLE_DRIVE_FOLDER_ID/GOOGLE_DRIVE_FOLDER_URL."
         )
     chunks, stats = service.fetch_chunks()
     return chunks, {"source": "google_drive", **stats}

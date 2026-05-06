@@ -494,7 +494,7 @@ class TrainerSubAgent:
                 "errors": [
                     {
                         "source": "google_drive",
-                        "error": "Google Drive not configured. Set GOOGLE_DRIVE_API_KEY.",
+                        "error": "Google Drive not configured. Set GOOGLE_DRIVE_API_KEY or GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE.",
                     }
                 ],
             }

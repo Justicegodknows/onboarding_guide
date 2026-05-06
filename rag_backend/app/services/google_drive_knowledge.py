@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import httpx
 from docx import Document
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from pypdf import PdfReader
 
 from app.core.config import settings
@@ -30,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 DRIVE_API_BASE = "https://www.googleapis.com/drive/v3"
+GOOGLE_DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
 class GoogleDriveKnowledgeService:
@@ -56,18 +59,32 @@ class GoogleDriveKnowledgeService:
         self,
         *,
         api_key: Optional[str] = None,
+        service_account_file: Optional[str] = None,
         folder_id: Optional[str] = None,
         folder_url: Optional[str] = None,
         chunk_size: Optional[int] = None,
         max_files: Optional[int] = None,
     ) -> None:
         self.api_key = (api_key if api_key is not None else settings.GOOGLE_DRIVE_API_KEY).strip()
+        self.service_account_file = (
+            service_account_file
+            if service_account_file is not None
+            else settings.GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE
+        ).strip()
         self.folder_id = self._resolve_folder_id(
             folder_id if folder_id is not None else settings.GOOGLE_DRIVE_FOLDER_ID,
             folder_url if folder_url is not None else settings.GOOGLE_DRIVE_FOLDER_URL,
         )
         self.chunk_size = chunk_size if chunk_size is not None else settings.GOOGLE_DRIVE_CHUNK_SIZE
         self.max_files = max_files if max_files is not None else settings.GOOGLE_DRIVE_MAX_FILES
+        self._drive_service = self._build_drive_service() if self.service_account_file else None
+
+    def _build_drive_service(self) -> Any:
+        credentials = service_account.Credentials.from_service_account_file(
+            self.service_account_file,
+            scopes=GOOGLE_DRIVE_SCOPES,
+        )
+        return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
     @staticmethod
     def _extract_folder_id(folder_ref: str) -> Optional[str]:
@@ -92,11 +109,19 @@ class GoogleDriveKnowledgeService:
 
     @property
     def configured(self) -> bool:
-        return bool(self.api_key and self.folder_id)
+        return bool((self.api_key or self._drive_service is not None) and self.folder_id)
 
     def _request_json(self, path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        if self._drive_service is not None:
+            if path != "/files":
+                raise ValueError(f"Unsupported Google Drive JSON path: {path}")
+            return self._drive_service.files().list(**params).execute()
+
         if not self.api_key:
-            raise RuntimeError("GOOGLE_DRIVE_API_KEY is missing.")
+            raise RuntimeError(
+                "Google Drive credentials are missing. Set GOOGLE_DRIVE_API_KEY or "
+                "GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE."
+            )
         params = dict(params)
         params["key"] = self.api_key
         with httpx.Client(timeout=30.0) as client:
@@ -105,8 +130,26 @@ class GoogleDriveKnowledgeService:
             return response.json()
 
     def _request_bytes(self, path: str, params: Dict[str, Any]) -> bytes:
+        if self._drive_service is not None:
+            file_id = path.strip("/").split("/")[1]
+            files_resource = self._drive_service.files()
+            if path.endswith("/export"):
+                request = files_resource.export_media(
+                    fileId=file_id,
+                    mimeType=params["mimeType"],
+                )
+            else:
+                request = files_resource.get_media(
+                    fileId=file_id,
+                    supportsAllDrives=params.get("supportsAllDrives"),
+                )
+            return request.execute()
+
         if not self.api_key:
-            raise RuntimeError("GOOGLE_DRIVE_API_KEY is missing.")
+            raise RuntimeError(
+                "Google Drive credentials are missing. Set GOOGLE_DRIVE_API_KEY or "
+                "GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE."
+            )
         params = dict(params)
         params["key"] = self.api_key
         with httpx.Client(timeout=30.0) as client:

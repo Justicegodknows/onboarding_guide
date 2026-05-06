@@ -29,6 +29,45 @@ def test_service_resolves_folder_id_from_url_when_id_missing():
     assert service.folder_id == "1vN7M2R14vNXCKvU2Y0ouCWeVZnuTEjAP"
 
 
+def test_service_is_configured_with_service_account_file():
+    with patch.object(
+        GoogleDriveKnowledgeService,
+        "_build_drive_service",
+        return_value=MagicMock(),
+    ):
+        service = GoogleDriveKnowledgeService(
+            api_key="",
+            service_account_file="/tmp/google-drive.json",
+            folder_id="folder-123",
+        )
+
+    assert service.configured is True
+
+
+def test_request_json_uses_drive_client_with_service_account():
+    mock_execute = MagicMock(return_value={"files": []})
+    mock_files = MagicMock()
+    mock_files.list.return_value.execute = mock_execute
+    mock_drive_service = MagicMock()
+    mock_drive_service.files.return_value = mock_files
+
+    with patch.object(
+        GoogleDriveKnowledgeService,
+        "_build_drive_service",
+        return_value=mock_drive_service,
+    ):
+        service = GoogleDriveKnowledgeService(
+            api_key="",
+            service_account_file="/tmp/google-drive.json",
+            folder_id="folder-123",
+        )
+
+    result = service._request_json("/files", {"q": "'folder-123' in parents"})
+
+    assert result == {"files": []}
+    mock_files.list.assert_called_once_with(q="'folder-123' in parents")
+
+
 def test_build_media_metadata_text_includes_core_fields():
     text = GoogleDriveKnowledgeService._build_media_metadata_text(
         {

@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/rag_backend/secrets/
 
 # debug
 npm-debug.log*

@@ -3,6 +3,8 @@ uvicorn
 pydantic
 pydantic-settings
 python-dotenv
+google-api-python-client
+google-auth
 openai
 langchain-openai
 sqlalchemy

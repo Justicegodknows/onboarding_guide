@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     )
     GOOGLE_DRIVE_FOLDER_ID: str = "1vN7M2R14vNXCKvU2Y0ouCWeVZnuTEjAP"
     GOOGLE_DRIVE_API_KEY: str = ""
+    GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE: str = ""
     GOOGLE_DRIVE_CHUNK_SIZE: int = 1200
     GOOGLE_DRIVE_MAX_FILES: int = 200
 
