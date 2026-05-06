@@ -26,6 +26,20 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "gemma4"
 
+    # NVIDIA NIM — embeddings via OpenAI-compatible endpoint (DGX Spark / NVIDIA cloud)
+    # Set NVIDIA_BASE_URL to your local NIM container, e.g. http://localhost:8000/v1,
+    # or leave as the NVIDIA cloud endpoint and supply NVIDIA_API_KEY.
+    NVIDIA_API_KEY: str = ""
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+    # Chat / generation model served by the NIM container or NVIDIA cloud
+    NVIDIA_CHAT_MODEL: str = "meta/llama-3.3-70b-instruct"
+    # Embeddings model
+    NVIDIA_EMBED_MODEL: str = "nvidia/llama-nemotron-embed-1b-v2"
+    # input_type for passage (document) embedding — "passage" or "query"
+    NVIDIA_EMBED_INPUT_TYPE_PASSAGE: str = "passage"
+    NVIDIA_EMBED_INPUT_TYPE_QUERY: str = "query"
+    NVIDIA_EMBED_TRUNCATE: str = "NONE"
+
     # Google Drive-backed knowledge base (primary source for ingestion)
     GOOGLE_DRIVE_FOLDER_URL: str = (
         "https://drive.google.com/drive/folders/"

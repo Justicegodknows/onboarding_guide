@@ -20,7 +20,7 @@ from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 
 
 class TrainerSubAgent:
-    """Trainer sub-agent with LM Studio tool-calling support."""
+    """Trainer sub-agent powered by NVIDIA NIM (LM Studio as fallback)."""
 
     CORE_WEBSITE_SOURCES = [
         "https://energiesparkommissar.de/video/bauphysik-zirkus-bauphysik-experimente-energiesparen-ohne-schimmel",
@@ -59,8 +59,9 @@ class TrainerSubAgent:
 
     def _auth_headers(self) -> Dict[str, str]:
         headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if settings.LLM_API_KEY and settings.LLM_API_KEY.strip():
-            headers["Authorization"] = f"Bearer {settings.LLM_API_KEY.strip()}"
+        api_key = settings.NVIDIA_API_KEY or settings.LLM_API_KEY
+        if api_key and api_key.strip():
+            headers["Authorization"] = f"Bearer {api_key.strip()}"
         return headers
 
     async def _post_chat_completion(
@@ -69,7 +70,7 @@ class TrainerSubAgent:
         url: str,
         payload: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Post a completion request, retrying once without auth if LM Studio returns 401."""
+        """Post a completion request, retrying once without auth if the endpoint returns 401."""
         headers = self._auth_headers()
         response = await client.post(url, json=payload, headers=headers)
         if response.status_code == 401 and "Authorization" in headers:
@@ -842,19 +843,19 @@ class TrainerSubAgent:
             return cleaned
         return cleaned[: max_chars - 3].rstrip() + "..."
 
-    async def _answer_via_ollama(
+    async def _answer_via_lmstudio(
         self,
         messages: List[Dict[str, Any]],
         question: str,
         source_digest: str,
     ) -> str:
-        """Run the full trainer answer pipeline against Ollama (LM Studio fallback)."""
-        url = f"{settings.OLLAMA_BASE_URL}/v1/chat/completions"
-        ollama_headers = {"Content-Type": "application/json"}
+        """Run the trainer answer pipeline against LM Studio (NVIDIA NIM fallback)."""
+        url = f"{settings.LM_STUDIO_BASE_URL}/v1/chat/completions"
+        lm_headers = {"Content-Type": "application/json"}
 
         local_messages = list(messages)
         payload: Dict[str, Any] = {
-            "model": settings.OLLAMA_MODEL,
+            "model": settings.LM_STUDIO_MODEL,
             "messages": local_messages,
             "tools": self._tool_specs(),
             "tool_choice": "auto",
@@ -864,14 +865,14 @@ class TrainerSubAgent:
         }
 
         async with httpx.AsyncClient(timeout=75.0) as client:
-            first_resp = await client.post(url, json=payload, headers=ollama_headers)
+            first_resp = await client.post(url, json=payload, headers=lm_headers)
             if first_resp.status_code == 400:
                 # Model does not support tool-calling; retry without tools.
                 no_tools_payload = {
                     k: v for k, v in payload.items() if k not in ("tools", "tool_choice")
                 }
                 first_resp = await client.post(
-                    url, json=no_tools_payload, headers=ollama_headers
+                    url, json=no_tools_payload, headers=lm_headers
                 )
             first_resp.raise_for_status()
             first_data = first_resp.json()
@@ -952,13 +953,13 @@ class TrainerSubAgent:
 
         if not evidence_lines:
             return (
-                "LM Studio is unavailable and Ollama is unavailable, and no indexed Trainer knowledge "
+                "NVIDIA NIM and LM Studio are both unavailable, and no indexed Trainer knowledge "
                 "matched your question yet. "
                 "Try rephrasing with specific keywords or ingesting/updating knowledge sources, then retry."
             )
 
         intro = (
-            "LM Studio is unavailable and Ollama is unavailable, so this answer was generated "
+            "NVIDIA NIM and LM Studio are both unavailable, so this answer was generated "
             "from indexed Trainer knowledge only. "
             "Please verify critical details before acting."
         )
@@ -1013,9 +1014,9 @@ class TrainerSubAgent:
             messages.append({"role": "user", "content": item})
         messages.append({"role": "user", "content": user_prompt})
 
-        url = f"{settings.LM_STUDIO_BASE_URL}/v1/chat/completions"
+        url = f"{settings.NVIDIA_BASE_URL.rstrip('/')}/chat/completions"
         payload: Dict[str, Any] = {
-            "model": settings.LM_STUDIO_MODEL,
+            "model": settings.NVIDIA_CHAT_MODEL,
             "messages": messages,
             "tools": self._tool_specs(),
             "tool_choice": "auto",
@@ -1068,7 +1069,7 @@ class TrainerSubAgent:
                 )
 
             second_payload = {
-                "model": settings.LM_STUDIO_MODEL,
+                "model": settings.NVIDIA_CHAT_MODEL,
                 "messages": messages,
                 "temperature": 1.0,
                 "top_p": 0.95,
@@ -1087,10 +1088,9 @@ class TrainerSubAgent:
 
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 400:
-                # Some LM Studio model backends do not support tool-calling yet.
-                # Retry without tools so Trainer remains usable.
+                # NVIDIA NIM model may not support tool-calling; retry without tools.
                 fallback_payload = {
-                    "model": settings.LM_STUDIO_MODEL,
+                    "model": settings.NVIDIA_CHAT_MODEL,
                     "messages": messages,
                     "temperature": 1.0,
                     "top_p": 0.95,
@@ -1111,39 +1111,37 @@ class TrainerSubAgent:
                     return answer_text
                 except Exception:
                     try:
-                        answer_text = await self._answer_via_ollama(
+                        answer_text = await self._answer_via_lmstudio(
                             messages_for_fallback, question, source_digest
                         )
                         self._store_response_memory(question, answer_text, source_digest)
                         return answer_text
                     except Exception:
                         return (
-                            "Trainer attempted LM Studio tool-calling but the backend rejected "
-                            "the request, and Ollama fallback was unavailable. "
-                            "Enable tool-calling support in LM Studio/model settings "
-                            "or ensure Ollama is running with gemma4."
+                            "NVIDIA NIM rejected the tool-calling request and LM Studio "
+                            "fallback was also unavailable. Check NVIDIA_CHAT_MODEL and "
+                            "that your NIM container supports function-calling."
                         )
             if exc.response.status_code == 401:
                 try:
-                    answer_text = await self._answer_via_ollama(
+                    answer_text = await self._answer_via_lmstudio(
                         messages_for_fallback, question, source_digest
                     )
                     self._store_response_memory(question, answer_text, source_digest)
                     return answer_text
                 except Exception:
                     return (
-                        "Trainer agent could not authenticate with LM Studio (401), and "
-                        "Ollama fallback was unavailable. Check LLM_API_KEY in "
-                        "rag_backend/.env, LM Studio auth settings, and Ollama status."
+                        "NVIDIA NIM returned 401 Unauthorized and LM Studio fallback was "
+                        "unavailable. Check NVIDIA_API_KEY in rag_backend/.env."
                     )
             return (
                 f"Trainer agent request failed with status {exc.response.status_code}. "
-                "Check LM Studio server/model settings and try again."
+                "Check NVIDIA_CHAT_MODEL and NIM container status."
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
-            # LM Studio unreachable — try Ollama before going fully offline.
+            # NVIDIA NIM unreachable — fall back to LM Studio.
             try:
-                answer_text = await self._answer_via_ollama(
+                answer_text = await self._answer_via_lmstudio(
                     messages_for_fallback, question, source_digest
                 )
                 self._store_response_memory(question, answer_text, source_digest)

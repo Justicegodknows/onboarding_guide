@@ -3,6 +3,8 @@ uvicorn
 pydantic
 pydantic-settings
 python-dotenv
+openai
+langchain-openai
 sqlalchemy
 psycopg2-binary
 transformers
