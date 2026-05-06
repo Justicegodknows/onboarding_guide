@@ -1,79 +1,38 @@
-"use client";
-import { FormEvent, useState } from "react";
 import Link from "next/link";
-import ChatBox from "./components/ChatBox";
-import { loginEmployee, registerEmployee } from "./api/backend";
 
-export default function Home() {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [authView, setAuthView] = useState<"login" | "signup" | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [department, setDepartment] = useState("General");
-  const [role, setRole] = useState<"USER" | "ADMIN">("USER");
-  const [authError, setAuthError] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
+import { getDepartments } from "./api/backend";
 
-  async function handleLogin(e: FormEvent) {
-    e.preventDefault();
-    setAuthError("");
-    setAuthLoading(true);
-
-    try {
-      const result = await loginEmployee(email, password);
-      localStorage.setItem("vaultmind_token", result.access_token);
-      setIsChatOpen(true);
-      setAuthView(null);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Login failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleSignup(e: FormEvent) {
-    e.preventDefault();
-    setAuthError("");
-    setAuthLoading(true);
-
-    try {
-      await registerEmployee({ email, password, role, dept: department });
-      setAuthView("login");
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Sign up failed");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  function resetAuthState(view: "login" | "signup") {
-    setAuthError("");
-    setEmail("");
-    setPassword("");
-    setDepartment("General");
-    setRole("USER");
-    setAuthView(view);
-  }
+export default async function Home() {
+  const departments = await getDepartments();
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      {/* --- LANDING PAGE SECTION --- */}
-      {!isChatOpen && !authView && (
-        <div className="flex flex-col items-center justify-center px-6 py-20 text-center max-w-6xl mx-auto">
-          <div className="mb-6 inline-block p-4 rounded-2xl bg-accent/20 text-accent text-4xl shadow-sm">
-            🔒
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-black mb-6 leading-tight">
-            Vault<span className="text-accent">Mind</span>
+    <main className="min-h-screen bg-zinc-50 dark:bg-black py-16 px-8 font-sans">
+      <div className="w-full max-w-5xl mx-auto flex flex-col gap-8">
+        <header>
+          <h1 className="text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+            Department Workspaces
           </h1>
-
-          <p className="text-xl md:text-2xl text-black max-w-3xl mx-auto leading-relaxed mb-12 font-medium">
-            A private AI knowledge assistant for organizations that need local,
-            role-aware access to trusted company knowledge.
+          <p className="text-lg leading-7 text-black/70 dark:text-zinc-400 mt-2">
+            Choose a department to open its dedicated workspace. Each workspace includes
+            direct access to the main chat agent and trainer sub-agent.
           </p>
         </header>
 
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {departments.map((department) => (
+            <Link
+              key={department.id}
+              href={`/departments/${department.id}`}
+              className="block rounded border bg-white dark:bg-zinc-900 p-5 hover:border-blue-400 transition-colors"
+            >
+              <h2 className="text-xl font-bold mb-2">{department.name}</h2>
+              <p className="text-zinc-700 dark:text-zinc-300 mb-2">{department.description}</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{department.info}</p>
+            </Link>
+          ))}
+        </section>
+      </div>
+    </main>
           {/* --- WHO IT IS FOR --- */}
           <div className="w-full max-w-4xl mb-20 bg-zinc-100 p-8 rounded-3xl border border-zinc-200 text-left">
             <h2 className="text-2xl font-bold text-black mb-4">Who is VaultMind for?</h2>

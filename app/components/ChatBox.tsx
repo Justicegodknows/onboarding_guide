@@ -2,6 +2,13 @@
 import { useState } from "react";
 import { sendChat } from "../api/backend";
 
+interface ChatBoxProps {
+    department?: string;
+    title?: string;
+    onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
+}
+
+export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
 interface Message {
     role: "user" | "assistant";
     content: string;
@@ -26,16 +33,14 @@ export default function ChatBox() {
         setError(null);
 
         try {
-            const res = await sendChat(currentQuestion, messages.map(m => m.content));
-
-            // Backend returns { answer: string, sources: Array<{source: string, content: string}> }
-            const assistantMsg: Message = {
-                role: "assistant",
-                content: res.answer,
-                sources: res.sources || []
-            };
-
-            setMessages(prev => [...prev, assistantMsg]);
+            // Prepend department context to the question
+            const deptQuestion = department ? `[${department}] ${question}` : question;
+            const sender = onSend ?? sendChat;
+            const questionToSend = onSend ? question : deptQuestion;
+            const res = await sender(questionToSend, history);
+            setAnswer(res.answer);
+            setHistory([...history, questionToSend]);
+            setQuestion("");
         } catch (e: any) {
             setError(e.message || "Failed to fetch response from VaultMind");
         } finally {
@@ -44,6 +49,9 @@ export default function ChatBox() {
     }
 
     return (
+        <div className="w-full max-w-lg mx-auto mt-8 p-4 border rounded bg-white dark:bg-zinc-900">
+            <h2 className="text-xl font-semibold mb-2">{title ?? "Chat with RAG Agent"}</h2>
+            <div className="mb-2">
         <div className="w-full max-w-3xl mx-auto mt-8 p-6 border rounded-xl bg-white shadow-lg dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center gap-2 mb-6 border-b pb-4">
                 <span className="text-2xl">🔒</span>
@@ -102,6 +110,7 @@ export default function ChatBox() {
                     type="text"
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
+                    placeholder={department ? `Ask about ${department}...` : "Type your question..."}
                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                     placeholder="Ask VaultMind anything..."
                     disabled={loading}

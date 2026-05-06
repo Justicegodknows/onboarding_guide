@@ -19,6 +19,17 @@ from app.models.knowledge_base import KnowledgeChunk
 
 
 class RAGService:
+    def ingest(self, document):
+        # Placeholder for ingest logic
+        pass
+
+    def chunk(self, document):
+        # Placeholder for chunking logic
+        pass
+
+    def embed(self, chunks):
+        # Placeholder for embedding logic
+        pass
     def __init__(self):
         # Configuration from environment or defaults
         self.embedding_model = "nomic-embed-text"
@@ -91,10 +102,18 @@ class RAGService:
 
         return retrieved_docs
 
-    def generate(self, context_docs: List[Dict], question: str) -> str:
+    def generate(self, context, question):
         """
-        Generate a grounded answer using the retrieved context and Ollama.
+        Generate an answer using Hugging Face LLM (transformers pipeline).
+        context: str or list of str (retrieved context)
+        question: str (user question)
         """
+        from transformers import pipeline
+        # You can change the model to any supported text-generation model
+        generator = pipeline("text-generation", model="gpt2")
+        prompt = f"Context: {context}\nQuestion: {question}\nAnswer:"
+        result = generator(prompt, max_length=256, num_return_sequences=1)
+        return result[0]["generated_text"][len(prompt):].strip()
         # Format context as a string with source markers
         context_text = "\n\n".join([
             f"Source [{i+1}] ({doc['metadata'].get('source', 'Unknown')}): {doc['content']}"
