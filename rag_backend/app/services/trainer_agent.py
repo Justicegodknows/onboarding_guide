@@ -716,12 +716,12 @@ class TrainerSubAgent:
                 "question": question,
                 "answer": answer,
                 "source_digest": source_digest[:12000],
-                "updated_at": datetime.datetime.utcnow().isoformat(),
+                "updated_at": datetime.datetime.now(datetime.UTC).isoformat(),
             }
             return
 
         key = self._question_key(question)
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         session = SessionLocal()
         try:
             row = session.query(TrainerResponseMemory).filter_by(question_key=key).first()

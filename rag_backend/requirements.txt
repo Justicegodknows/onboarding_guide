@@ -26,6 +26,8 @@ langchain
 langchain-community
 langchain-core
 langchain-text-splitters
+langchain-ollama
+langchain-chroma
 chromadb
 pymupdf
 python-jose[cryptography]

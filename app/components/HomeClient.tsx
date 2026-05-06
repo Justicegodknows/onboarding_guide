@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import type { DepartmentInfo } from "../api/backend";
@@ -12,6 +12,35 @@ interface HomeClientProps {
 
 export default function HomeClient({ departments }: HomeClientProps) {
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [activeOnboardingStep, setActiveOnboardingStep] = useState(0);
+
+    const onboardingSteps = [
+        {
+            title: "Meet VaultMind",
+            description: "Search your company knowledge with guided prompts and grounded answers.",
+            chipClassName: "bg-cyan-100",
+        },
+        {
+            title: "Choose A Workspace",
+            description: "Open your department context and focus on role-specific onboarding guidance.",
+            chipClassName: "bg-blue-100",
+        },
+        {
+            title: "Get Source-Backed Help",
+            description: "Ask questions and act confidently using evidence pulled from your internal docs.",
+            chipClassName: "bg-zinc-100",
+        },
+    ] as const;
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setActiveOnboardingStep((prev) => (prev + 1) % onboardingSteps.length);
+        }, 2800);
+
+        return () => window.clearInterval(interval);
+    }, [onboardingSteps.length]);
+
+    const currentStep = onboardingSteps[activeOnboardingStep];
 
     return (
         <div className="relative min-h-screen bg-zinc-50 dark:bg-black py-16 px-6 md:px-8 font-sans overflow-hidden">
@@ -21,30 +50,68 @@ export default function HomeClient({ departments }: HomeClientProps) {
             </div>
 
             <div className="relative w-full max-w-5xl mx-auto flex flex-col gap-10">
-                <header className="text-left rounded-3xl border border-zinc-200/80 bg-white/85 backdrop-blur-sm p-8 shadow-xl">
-                    <p className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 bg-cyan-100 px-3 py-1 rounded-full mb-4">
-                        Private Knowledge AI
-                    </p>
-                    <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight text-black dark:text-zinc-50">
-                        VaultMind
-                    </h1>
-                    <p className="text-lg leading-7 text-black/70 dark:text-zinc-400 mt-3 max-w-3xl">
-                        Private, local-first AI assistant for internal company knowledge. Explore departmental workspaces,
-                        onboard faster, and chat with grounded responses from your document base.
-                    </p>
-                    <div className="flex flex-wrap gap-4 mt-6">
-                        <button
-                            onClick={() => setIsChatOpen((prev) => !prev)}
-                            className="px-8 py-3 bg-primary text-white rounded-full font-bold hover:bg-opacity-90 hover:-translate-y-0.5 transition-all shadow-xl"
-                        >
-                            {isChatOpen ? "Hide Assistant" : "Open Assistant"}
-                        </button>
-                        <Link
-                            href="/docs"
-                            className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
-                        >
-                            User Guide
-                        </Link>
+                <header className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 items-center rounded-3xl border border-zinc-200/80 bg-white/85 backdrop-blur-sm p-8 shadow-xl">
+                    <div className="text-left">
+                        <p className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 bg-cyan-100 px-3 py-1 rounded-full mb-4">
+                            Private Knowledge AI
+                        </p>
+                        <h1 className="text-4xl md:text-5xl font-bold leading-tight tracking-tight text-black dark:text-zinc-50">
+                            VaultMind
+                        </h1>
+                        <p className="text-lg leading-7 text-black/70 dark:text-zinc-400 mt-3 max-w-3xl">
+                            Private, local-first AI assistant for internal company knowledge. Explore departmental workspaces,
+                            onboard faster, and chat with grounded responses from your document base.
+                        </p>
+                        <div className="flex flex-wrap gap-4 mt-6">
+                            <button
+                                onClick={() => setIsChatOpen((prev) => !prev)}
+                                className="px-8 py-3 bg-primary text-white rounded-full font-bold hover:bg-opacity-90 hover:-translate-y-0.5 transition-all shadow-xl"
+                            >
+                                {isChatOpen ? "Hide Assistant" : "Open Assistant"}
+                            </button>
+                            <Link
+                                href="/docs"
+                                className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
+                            >
+                                User Guide
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="relative h-90 w-full max-w-90 mx-auto">
+                        <div className="absolute inset-0 rounded-4xl bg-linear-to-br from-cyan-100 to-blue-100 border border-cyan-200 shadow-inner" />
+
+                        <div className="absolute top-5 left-5 right-5 h-62.5 rounded-[1.75rem] bg-cyan-400/80 shadow-2xl -rotate-6" />
+                        <div className="absolute top-9 left-6 right-6 h-62.5 rounded-[1.75rem] bg-blue-500/80 shadow-2xl rotate-[4deg]" />
+
+                        <div className="absolute top-12 left-7 right-7 h-62.5 rounded-[1.75rem] bg-white p-6 shadow-2xl border border-zinc-100">
+                            <p className="text-xs uppercase tracking-[0.2em] text-zinc-400 font-bold">Onboarding</p>
+                            <h3 className="text-2xl font-extrabold text-zinc-900 mt-2 transition-all duration-300">{currentStep.title}</h3>
+                            <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
+                                {currentStep.description}
+                            </p>
+
+                            <div className="mt-5 grid grid-cols-3 gap-2">
+                                {onboardingSteps.map((step, idx) => (
+                                    <div
+                                        key={step.title}
+                                        className={`h-16 rounded-xl transition-all duration-300 ${step.chipClassName} ${idx === activeOnboardingStep ? "ring-2 ring-cyan-500 scale-[1.03]" : "opacity-80"}`}
+                                    />
+                                ))}
+                            </div>
+
+                            <div className="mt-6 flex items-center justify-between">
+                                <div className="flex gap-2">
+                                    {onboardingSteps.map((step, idx) => (
+                                        <span
+                                            key={`dot-${step.title}`}
+                                            className={`h-2.5 rounded-full transition-all duration-300 ${idx === activeOnboardingStep ? "w-6 bg-cyan-500" : "w-2.5 bg-zinc-300"}`}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-xs font-bold text-zinc-500">Step {activeOnboardingStep + 1}/{onboardingSteps.length}</span>
+                            </div>
+                        </div>
                     </div>
                 </header>
 
@@ -53,6 +120,21 @@ export default function HomeClient({ departments }: HomeClientProps) {
                         <ChatBox title="VaultMind Assistant" />
                     </section>
                 )}
+
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-2xl bg-cyan-50 border border-cyan-200 p-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-cyan-700 font-bold">01 Discover</p>
+                        <p className="mt-2 text-sm text-zinc-700">Browse department workspaces and locate relevant internal domains quickly.</p>
+                    </div>
+                    <div className="rounded-2xl bg-blue-50 border border-blue-200 p-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-blue-700 font-bold">02 Ask</p>
+                        <p className="mt-2 text-sm text-zinc-700">Ask context-aware questions and iterate using conversation history.</p>
+                    </div>
+                    <div className="rounded-2xl bg-zinc-100 border border-zinc-200 p-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-700 font-bold">03 Act</p>
+                        <p className="mt-2 text-sm text-zinc-700">Use source-backed answers for onboarding, compliance, and operations tasks.</p>
+                    </div>
+                </section>
 
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {departments.map((department) => (

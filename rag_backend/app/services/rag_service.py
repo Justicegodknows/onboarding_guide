@@ -12,8 +12,19 @@ class RAGService:
         self.llm_model = settings.LM_STUDIO_MODEL
         self.persist_directory = "./chroma_db"
 
-        vectorstores = importlib.import_module("langchain_community.vectorstores")
-        embeddings_mod = importlib.import_module("langchain_community.embeddings")
+        try:
+            chroma_mod = importlib.import_module("langchain_chroma")
+            self._Chroma = chroma_mod.Chroma
+        except ImportError:
+            vectorstores = importlib.import_module("langchain_community.vectorstores")
+            self._Chroma = vectorstores.Chroma
+
+        try:
+            ollama_mod = importlib.import_module("langchain_ollama")
+            self._OllamaEmbeddings = ollama_mod.OllamaEmbeddings
+        except ImportError:
+            embeddings_mod = importlib.import_module("langchain_community.embeddings")
+            self._OllamaEmbeddings = embeddings_mod.OllamaEmbeddings
 
         try:
             splitters_mod = importlib.import_module("langchain_text_splitters")
@@ -33,8 +44,8 @@ class RAGService:
             length_function=len,
         )
 
-        self.embeddings = embeddings_mod.OllamaEmbeddings(model=self.embedding_model)
-        self.vector_store = vectorstores.Chroma(
+        self.embeddings = self._OllamaEmbeddings(model=self.embedding_model)
+        self.vector_store = self._Chroma(
             persist_directory=self.persist_directory,
             embedding_function=self.embeddings,
         )

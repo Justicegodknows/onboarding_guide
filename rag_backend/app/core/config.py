@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from pathlib import Path
 
@@ -41,8 +41,6 @@ class Settings(BaseSettings):
     YOUTUBE_MAX_VIDEOS: int = 25
     YOUTUBE_CHUNK_SIZE: int = 1200
 
-    class Config:
-        env_file = str(ENV_FILE)
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=str(ENV_FILE), extra="ignore")
 
 settings = Settings()
