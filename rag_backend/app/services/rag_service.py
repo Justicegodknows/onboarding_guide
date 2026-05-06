@@ -1,5 +1,17 @@
-# rag_service.py
-# Ingest → Chunk → Embed → Retrieve → Generate
+import os
+from typing import List, Dict, Any
+import fitz  # PyMuPDF
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.llms import Ollama
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:  # Backward compatibility with older LangChain installs
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+try:
+    from langchain_core.documents import Document
+except ImportError:  # Backward compatibility with older LangChain installs
+    from langchain.docstore.document import Document
 
 import datetime
 from app.db import SessionLocal
@@ -7,206 +19,96 @@ from app.models.knowledge_base import KnowledgeChunk
 
 
 class RAGService:
-    def ingest(self, document):
-        """
-        Ingest a document chunk into the knowledge base, avoiding duplicates.
-        document: dict with keys 'source', 'chunk_id', 'text', and optionally 'category_id', 'topic', 'tags'.
-        """
-        session = SessionLocal()
-        chunk_uid = f"{document['source']}-{document['chunk_id']}"
-        try:
-            exists = session.query(KnowledgeChunk).filter_by(chunk_id=chunk_uid).first()
-            if exists:
-                print(f"Chunk {chunk_uid} already exists. Skipping.")
-                return False
+    def __init__(self):
+        # Configuration from environment or defaults
+        self.embedding_model = "nomic-embed-text"
+        self.llm_model = "llama3"
+        self.persist_directory = "./chroma_db"
 
-            chunk = KnowledgeChunk(
-                chunk_id=chunk_uid,
-                title=document.get('source', ''),
-                content=document.get('text', ''),
-                created_at=datetime.datetime.utcnow(),
-                updated_at=datetime.datetime.utcnow(),
-                category_id=document.get('category_id'),
-                topic=document.get('topic'),
-                tags=document.get('tags')
-            )
-            session.add(chunk)
-            session.commit()
-            print(f"Ingested chunk {chunk_uid}")
-            return True
-        except Exception as e:
-            session.rollback()
-            print(f"Error ingesting chunk {chunk_uid}: {e}")
-            return False
-        finally:
-            session.close()
+        # Initialize Ollama Embeddings
+        self.embeddings = OllamaEmbeddings(model=self.embedding_model)
 
-    def chunk(self, document):
-        # Placeholder for chunking logic
-        pass
-
-    def embed(self, chunks):
-        # Placeholder for embedding logic
-        pass
-
-    def retrieve(self, query):
-        # Placeholder for retrieval logic
-        pass
-
-    async def generate(self, context: str, question: str, system_prompt: str | None = None) -> str:
-        """
-        Generate an answer using the LM Studio HTTP endpoint only.
-
-        google/gemma-4-E4B-it must be loaded in LM Studio with the server
-        started on port 1234.
-        """
-        from app.core.config import settings
-
-        resolved_system_prompt = (
-            system_prompt
-            or "You are a helpful assistant for an employee onboarding guide."
+        # Initialize Vector Store
+        self.vector_store = Chroma(
+            persist_directory=self.persist_directory,
+            embedding_function=self.embeddings
         )
-        messages = [
-            {"role": "system", "content": resolved_system_prompt},
-            {
-                "role": "user",
-                "content": (
-                    f"Use the following context to answer the question.\n\n"
-                    f"Context:\n{context}\n\n"
-                    f"Question: {question}"
-                ),
-            },
-        ]
 
-        try:
-            return await self._generate_via_openai_compat(messages, settings)
-        except Exception as exc:
-            import httpx
+        # Initialize Ollama LLM
+        self.llm = Ollama(model=self.llm_model)
 
-            _UNAVAILABLE = (
-                "The AI model is currently unavailable. "
-                "Please start LM Studio (port 1234) or Ollama (port 11434) with "
-                "the gemma4 model loaded, then try again."
-            )
-            _UNAUTHORIZED = (
-                "LM Studio rejected the request with 401 Unauthorized. "
-                "Check the LM Studio server settings and any required API key, "
-                "then try again."
-            )
-            if isinstance(exc, httpx.HTTPStatusError):
-                if exc.response.status_code == 401:
-                    try:
-                        return await self._generate_via_ollama(messages, settings)
-                    except Exception:
-                        return _UNAUTHORIZED
-                try:
-                    return await self._generate_via_ollama(messages, settings)
-                except Exception:
-                    return (
-                        f"LM Studio request failed with status {exc.response.status_code}, "
-                        "and Ollama fallback was unavailable. "
-                        "Check LM Studio/Ollama model configuration, then try again."
-                    )
-            # httpx connection errors — try Ollama before giving up
-            _is_conn_error = (
-                isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout, OSError))
-                or (
-                    getattr(exc, "exceptions", None)
-                    and any(isinstance(e, OSError) for e in exc.exceptions)
-                )
-            )
-            if _is_conn_error:
-                try:
-                    return await self._generate_via_ollama(messages, settings)
-                except Exception:
-                    return _UNAVAILABLE
-            raise
-
-    # Hugging Face/local transformers support is intentionally disabled.
-    # Keep this implementation commented out for now so all responses route
-    # through LM Studio.
-    async def _generate_via_transformers(self, messages: list, settings) -> str:
+    def ingest(self, file_path: str, metadata: Dict[str, Any] = None):
         """
-        Run google/gemma-4-E4B-it locally using AutoProcessor + AutoModelForCausalLM.
-        Follows the official Gemma 4 usage pattern.
-        The synchronous model call is offloaded to a thread pool to avoid blocking
-        the async event loop.
+        Full pipeline: Parse PDF -> Chunk -> Embed -> Store
         """
-        import asyncio
-        from functools import partial
+        # 1. Parse PDF using PyMuPDF
+        text = ""
+        with fitz.open(file_path) as doc:
+            for page in doc:
+                text += page.get_text()
 
-        def _run() -> str:
-            from transformers import AutoProcessor, AutoModelForCausalLM
+        # 2. Chunk text
+        chunks = self.chunk(text)
 
-            processor = AutoProcessor.from_pretrained(settings.LLM_MODEL_NAME)
-            model = AutoModelForCausalLM.from_pretrained(
-                settings.LLM_MODEL_NAME,
-                dtype="auto",
-                device_map="auto",
-            )
+        # 3. Convert to LangChain Documents with metadata
+        documents = []
+        for chunk in chunks:
+            doc_metadata = metadata or {}
+            doc_metadata["source"] = file_path
+            documents.append(Document(page_content=chunk, metadata=doc_metadata))
 
-            text = processor.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=False,
-            )
-            inputs = processor(text=text, return_tensors="pt").to(model.device)
-            input_len = inputs["input_ids"].shape[-1]
+        # 4. Embed and store in ChromaDB
+        self.vector_store.add_documents(documents)
+        return {"status": "success", "chunks_added": len(documents)}
 
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=512,
-                temperature=1.0,
-                top_p=0.95,
-                top_k=64,
-                do_sample=True,
-            )
-            response = processor.decode(outputs[0][input_len:], skip_special_tokens=False)
-            return processor.parse_response(response)
+    def chunk(self, text: str) -> List[str]:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=100,
+            length_function=len,
+        )
+        return text_splitter.split_text(text)
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, _run)
+    def retrieve(self, query: str, top_k: int = 3, filter_metadata: Dict = None) -> List[Dict]:
+        """
+        Retrieve the most relevant chunks from the vector store.
+        """
+        # Perform semantic search
+        results = self.vector_store.similarity_search_with_relevance_scores(
+            query,
+            k=top_k,
+            filter=filter_metadata
+        )
 
-    async def _generate_via_openai_compat(self, messages: list, settings) -> str:
-        """Use LM Studio's OpenAI-compatible REST API (/v1/chat/completions)."""
-        import httpx
+        # Format results
+        retrieved_docs = []
+        for doc, score in results:
+            retrieved_docs.append({
+                "content": doc.page_content,
+                "metadata": doc.metadata,
+                "score": score
+            })
 
-        url = f"{settings.LM_STUDIO_BASE_URL}/v1/chat/completions"
-        headers = {"Content-Type": "application/json"}
-        if settings.LLM_API_KEY and settings.LLM_API_KEY.strip():
-            headers["Authorization"] = f"Bearer {settings.LLM_API_KEY.strip()}"
-        payload = {
-            "model": settings.LM_STUDIO_MODEL,
-            "messages": messages,
-            "max_tokens": 512,
-            "temperature": 1.0,
-            "top_p": 0.95,
-        }
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip()
+        return retrieved_docs
 
-    async def _generate_via_ollama(self, messages: list, settings) -> str:
-        """Use Ollama's OpenAI-compatible REST API as a fallback for LM Studio."""
-        import httpx
+    def generate(self, context_docs: List[Dict], question: str) -> str:
+        """
+        Generate a grounded answer using the retrieved context and Ollama.
+        """
+        # Format context as a string with source markers
+        context_text = "\n\n".join([
+            f"Source [{i+1}] ({doc['metadata'].get('source', 'Unknown')}): {doc['content']}"
+            for i, doc in enumerate(context_docs)
+        ])
 
-        url = f"{settings.OLLAMA_BASE_URL}/v1/chat/completions"
-        payload = {
-            "model": settings.OLLAMA_MODEL,
-            "messages": messages,
-            "max_tokens": 512,
-            "temperature": 1.0,
-            "top_p": 0.95,
-        }
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip()
+        system_prompt = (
+            "You are VaultMind, a private corporate AI assistant. "
+            "Answer the question strictly using the provided context. "
+            "If the answer is not in the context, say 'I do not have enough information in the knowledge base to answer this.' "
+            "Always cite your sources using [1], [2] format."
+        )
+
+        prompt = f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion: {question}\n\nAnswer:"
+
+        response = self.llm.invoke(prompt)
+        return response.strip()

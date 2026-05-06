@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🔒 VaultMind: Private AI Knowledge Assistant
 
-## Getting Started
+VaultMind is a fully private, on-premise AI assistant designed for Small to Medium Enterprises (SMEs). It allows employees to query the entire company document library in plain English—with zero data leaving the network, zero cloud subscriptions, and zero per-user fees.
 
-First, run the development server:
+## 💼 Business Case
+SMEs lose significant productivity to information search waste and face high compliance risks from "Shadow AI" (employees using public LLMs with confidential data). VaultMind solves this by providing a sanctioned, local alternative that guarantees data sovereignty and reduces onboarding friction.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🏗️ Architecture
+VaultMind follows a **Retrieval-Augmented Generation (RAG)** architecture:
+`User Interface (Next.js)` $\rightarrow$ `API Gateway (FastAPI)` $\rightarrow$ `RAG Pipeline (LangChain)` $\rightarrow$ `Vector Store (ChromaDB)` $\rightarrow$ `Local LLM (Ollama)`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Tech Stack
+- **Frontend**: Next.js, Tailwind CSS, TypeScript.
+- **Backend API**: Python / FastAPI.
+- **RAG Framework**: LangChain.
+- **Vector Database**: ChromaDB (Local).
+- **LLM Runtime**: Ollama (Local).
+- **Document Parsing**: PyMuPDF (fitz).
+- **Security**: JWT Tokens with Role-Based Access Control (RBAC).
+- **Deployment**: Docker & Docker Compose.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Getting Started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prerequisites
+- **Docker & Docker Compose** installed.
+- **Ollama** installed locally (or running in Docker).
+- **GPU** (NVIDIA RTX 4090 recommended for optimal performance).
 
-## Learn More
+### Installation
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd onboarding_guide
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Start the Backend**:
+   ```bash
+   cd rag_backend
+   docker-compose up -d
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Pull Required Models via Ollama**:
+   ```bash
+   ollama pull llama3
+   ollama pull nomic-embed-text
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Start the Frontend**:
+   ```bash
+   # From root directory
+   npm install
+   npm run dev
+   ```
+   Access the app at `http://localhost:3000`.
 
-## Deploy on Vercel
+## 🔐 Security & Permissions
+VaultMind implements granular access control:
+- **Users**: Can query documents and receive cited answers.
+- **Admins**: Can upload new documents to the knowledge base via the Admin Dashboard.
+- **RBAC**: Enforced via JWT claims (e.g., `department: "Finance"`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📊 Expected ROI
+- **Search Waste**: Recovers ~2 hours of productivity per employee/day.
+- **Cost**: Eliminates per-seat cloud AI subscriptions ($30-$60/user/mo).
+- **Risk**: 100% elimination of data leakage to third-party LLM providers.
