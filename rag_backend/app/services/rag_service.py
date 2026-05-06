@@ -30,6 +30,55 @@ class RAGService:
     def embed(self, chunks):
         # Placeholder for embedding logic
         pass
+    def __init__(self):
+        # Configuration from environment or defaults
+        self.embedding_model = "nomic-embed-text"
+        self.llm_model = "llama3"
+        self.persist_directory = "./chroma_db"
+
+        # Initialize Ollama Embeddings
+        self.embeddings = OllamaEmbeddings(model=self.embedding_model)
+
+        # Initialize Vector Store
+        self.vector_store = Chroma(
+            persist_directory=self.persist_directory,
+            embedding_function=self.embeddings
+        )
+
+        # Initialize Ollama LLM
+        self.llm = Ollama(model=self.llm_model)
+
+    def ingest(self, file_path: str, metadata: Dict[str, Any] = None):
+        """
+        Full pipeline: Parse PDF -> Chunk -> Embed -> Store
+        """
+        # 1. Parse PDF using PyMuPDF
+        text = ""
+        with fitz.open(file_path) as doc:
+            for page in doc:
+                text += page.get_text()
+
+        # 2. Chunk text
+        chunks = self.chunk(text)
+
+        # 3. Convert to LangChain Documents with metadata
+        documents = []
+        for chunk in chunks:
+            doc_metadata = metadata or {}
+            doc_metadata["source"] = file_path
+            documents.append(Document(page_content=chunk, metadata=doc_metadata))
+
+        # 4. Embed and store in ChromaDB
+        self.vector_store.add_documents(documents)
+        return {"status": "success", "chunks_added": len(documents)}
+
+    def chunk(self, text: str) -> List[str]:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=100,
+            length_function=len,
+        )
+        return text_splitter.split_text(text)
 
     def retrieve(self, query: str, top_k: int = 3, filter_metadata: Dict = None) -> List[Dict]:
         """
@@ -65,3 +114,20 @@ class RAGService:
         prompt = f"Context: {context}\nQuestion: {question}\nAnswer:"
         result = generator(prompt, max_length=256, num_return_sequences=1)
         return result[0]["generated_text"][len(prompt):].strip()
+        # Format context as a string with source markers
+        context_text = "\n\n".join([
+            f"Source [{i+1}] ({doc['metadata'].get('source', 'Unknown')}): {doc['content']}"
+            for i, doc in enumerate(context_docs)
+        ])
+
+        system_prompt = (
+            "You are VaultMind, a private corporate AI assistant. "
+            "Answer the question strictly using the provided context. "
+            "If the answer is not in the context, say 'I do not have enough information in the knowledge base to answer this.' "
+            "Always cite your sources using [1], [2] format."
+        )
+
+        prompt = f"{system_prompt}\n\nContext:\n{context_text}\n\nQuestion: {question}\n\nAnswer:"
+
+        response = self.llm.invoke(prompt)
+        return response.strip()
