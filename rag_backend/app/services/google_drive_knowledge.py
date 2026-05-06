@@ -1,8 +1,11 @@
 import logging
 import os
 import re
+import ssl
 import subprocess
 import tempfile
+import time
+from http.client import IncompleteRead as _IncompleteRead
 from io import BytesIO
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -40,6 +43,11 @@ class GoogleDriveKnowledgeService:
 
     WHISPER_MODEL_SIZE: str = "tiny"
     _whisper_model: Optional[Any] = None  # class-level lazy cache
+
+    # Files larger than this threshold are skipped for binary download (metadata only).
+    MAX_DOWNLOAD_BYTES: int = 500 * 1024 * 1024  # 500 MB
+    # Number of retry attempts for transient network errors during download.
+    _DOWNLOAD_MAX_RETRIES: int = 3
 
     EXPORT_MIME_MAP = {
         "application/vnd.google-apps.document": "text/plain",
@@ -143,7 +151,23 @@ class GoogleDriveKnowledgeService:
                     fileId=file_id,
                     supportsAllDrives=params.get("supportsAllDrives"),
                 )
-            return request.execute()
+            last_exc: Optional[Exception] = None
+            for attempt in range(self._DOWNLOAD_MAX_RETRIES):
+                try:
+                    return request.execute()
+                except (_IncompleteRead, ssl.SSLError, OSError) as exc:
+                    last_exc = exc
+                    if attempt < self._DOWNLOAD_MAX_RETRIES - 1:
+                        wait = 2 ** attempt
+                        logger.warning(
+                            "Download attempt %d/%d failed (%s); retrying in %ds…",
+                            attempt + 1,
+                            self._DOWNLOAD_MAX_RETRIES,
+                            exc,
+                            wait,
+                        )
+                        time.sleep(wait)
+            raise last_exc  # type: ignore[misc]
 
         if not self.api_key:
             raise RuntimeError(
@@ -221,6 +245,24 @@ class GoogleDriveKnowledgeService:
             "Note: OCR/transcription was unavailable or returned no text. Access the file directly via the link above."
         )
         return "\n".join(lines)
+
+    def _within_size_limit(self, file_meta: Dict[str, Any]) -> bool:
+        """Return False (and log a warning) if the file exceeds MAX_DOWNLOAD_BYTES."""
+        size_str = file_meta.get("size", "")
+        if size_str:
+            try:
+                if int(size_str) > self.MAX_DOWNLOAD_BYTES:
+                    logger.warning(
+                        "Skipping download of '%s' (%s bytes) — exceeds MAX_DOWNLOAD_BYTES (%d). "
+                        "Falling back to metadata.",
+                        file_meta.get("name", "unknown"),
+                        size_str,
+                        self.MAX_DOWNLOAD_BYTES,
+                    )
+                    return False
+            except (ValueError, TypeError):
+                pass
+        return True
 
     @staticmethod
     def _extract_image_ocr(content: bytes) -> str:
@@ -370,6 +412,8 @@ class GoogleDriveKnowledgeService:
             return ocr_text if ocr_text else self._build_media_metadata_text(file_meta)
 
         if mime_type.startswith("audio/"):
+            if not self._within_size_limit(file_meta):
+                return self._build_media_metadata_text(file_meta)
             content = self._request_bytes(
                 f"/files/{file_id}",
                 {"alt": "media", "supportsAllDrives": "true"},
@@ -379,6 +423,8 @@ class GoogleDriveKnowledgeService:
             return transcript if transcript else self._build_media_metadata_text(file_meta)
 
         if mime_type.startswith("video/"):
+            if not self._within_size_limit(file_meta):
+                return self._build_media_metadata_text(file_meta)
             content = self._request_bytes(
                 f"/files/{file_id}",
                 {"alt": "media", "supportsAllDrives": "true"},
