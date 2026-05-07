@@ -1,0 +1,7 @@
+"#","File","Task","Time"
+"1","nodes/rag.py","Wire up ChromaDB retrieval","15 min"
+"2","nodes/generate.py","Add OpenAI LLM call","10 min"
+"3","nodes/classify.py","LLM-based intent classifier","15 min"
+"4","graph.py","Add persistence checkpointer","10 min"
+"5","routers/agent_chat.py","Add SSE streaming","15 min"
+"6","nodes/tools_setup.py","Define @tool functions","20 min"

@@ -1,0 +1,16 @@
+{
+  "python.defaultInterpreterPath": "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/rag_backend"
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "chat.mcp.access": "all",
+  "chat.mcp.autostart": "newAndOutdated",
+  "chat.mcp.serverSampling": {
+    "Web Scraping Copilot: Web Scraping Copilot": {
+      "allowedModels": [
+        "copilot/gpt-5-mini"
+      ]
+    }
+  }
+}

@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VaultMind — Complete Project Document with Business Case</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #F4F6FA; min-height: 100vh; }
+
+  .header { background: #0D1B2A; padding: 28px 32px 0; border-bottom: 4px solid #00B4D8; }
+  .header-top { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .header-icon { background: #00B4D8; border-radius: 10px; padding: 8px 14px; font-size: 22px; }
+  .header-title { color: white; font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+  .header-sub { color: #00B4D8; font-size: 12px; font-weight: 500; }
+  .badge { margin-left: auto; background: #F4A261; color: #0D1B2A; border-radius: 20px; padding: 4px 14px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+  .tabs { display: flex; gap: 4px; margin-top: 16px; flex-wrap: wrap; }
+  .tab-btn { padding: 10px 16px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; border-radius: 8px 8px 0 0; background: transparent; color: #A8C8E8; font-family: 'Inter', sans-serif; transition: background 0.2s, color 0.2s; }
+  .tab-btn.active { background: #F4F6FA; color: #0D1B2A; }
+  .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.08); }
+
+  .content { padding: 28px 32px; max-width: 980px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .section-title { font-size: 18px; font-weight: 800; color: #0D1B2A; margin-bottom: 4px; }
+  .section-sub { font-size: 12px; color: #666; margin-bottom: 18px; }
+
+  /* COVER */
+  .cover-box { background: linear-gradient(135deg, #0D1B2A 0%, #1565C0 100%); border-radius: 16px; padding: 48px 40px; color: white; margin-bottom: 24px; position: relative; overflow: hidden; }
+  .cover-box::before { content: '🔒'; font-size: 200px; position: absolute; right: -20px; top: -20px; opacity: 0.04; }
+  .cover-logo { font-size: 44px; margin-bottom: 10px; }
+  .cover-title { font-size: 40px; font-weight: 800; letter-spacing: 2px; margin-bottom: 6px; }
+  .cover-tagline { font-size: 15px; color: #00B4D8; font-weight: 600; margin-bottom: 20px; }
+  .cover-desc { font-size: 13px; color: rgba(255,255,255,0.8); line-height: 1.8; max-width: 580px; margin-bottom: 28px; }
+  .cover-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+  .cover-meta-item { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 18px; }
+  .cover-meta-label { font-size: 9px; color: rgba(255,255,255,0.5); font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
+  .cover-meta-value { font-size: 13px; font-weight: 700; color: white; }
+
+  /* CARDS */
+  .card-grid { display: grid; gap: 12px; margin-bottom: 22px; }
+  .card-grid.col3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-grid.col2 { grid-template-columns: 1fr 1fr; }
+  .card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .card-top { border-top-width: 4px; border-top-style: solid; }
+  .card-icon { font-size: 24px; margin-bottom: 8px; }
+  .card-title { font-weight: 800; font-size: 12px; color: #0D1B2A; margin-bottom: 5px; }
+  .card-text { font-size: 11px; color: #555; line-height: 1.6; }
+
+  /* MVP BOX */
+  .mvp-box { background: linear-gradient(135deg, #0D1B2A, #1565C0); border-radius: 12px; padding: 22px; margin-bottom: 22px; }
+  .mvp-title { color: #00B4D8; font-weight: 800; font-size: 14px; margin-bottom: 4px; }
+  .mvp-sub { color: rgba(255,255,255,0.6); font-size: 11px; margin-bottom: 14px; }
+  .mvp-items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mvp-item { background: rgba(255,255,255,0.1); border: 1px solid rgba(0,180,216,0.4); border-radius: 8px; padding: 7px 13px; color: white; font-size: 11px; font-weight: 600; }
+  .mvp-item span { color: #00B4D8; margin-right: 5px; }
+
+  /* TECH TABLE */
+  .tech-section { margin-bottom: 22px; }
+  .tech-section-hdr { display: flex; align-items: center; padding: 11px 16px; border-radius: 10px 10px 0 0; }
+  .tech-section-hdr span { color: white; font-weight: 800; font-size: 13px; }
+  .tech-table { width: 100%; border-collapse: collapse; background: white; border-radius: 0 0 10px 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .tech-table th { padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #F8F9FA; color: #555; }
+  .tech-table td { padding: 10px 14px; font-size: 12px; color: #333; border-top: 1px solid #F0F0F0; vertical-align: top; }
+  .tech-table tr:hover td { background: #FAFAFA; }
+  .tech-table td a { color: #1565C0; text-decoration: none; font-weight: 500; }
+  .tech-table td a:hover { text-decoration: underline; }
+
+  /* ROADMAP */
+  .timeline-bar { display: flex; gap: 2px; margin-bottom: 22px; border-radius: 8px; overflow: hidden; }
+  .tl-cell { flex: 1; padding: 7px 4px; text-align: center; }
+  .tl-cell .wk { color: white; font-size: 10px; font-weight: 700; }
+  .tl-cell .dt { color: rgba(255,255,255,0.6); font-size: 9px; }
+  .week-card { background: white; border-radius: 12px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .week-hdr { padding: 11px 18px; display: flex; align-items: center; gap: 10px; }
+  .week-icon { font-size: 18px; }
+  .week-name { color: white; font-weight: 800; font-size: 13px; }
+  .week-dates { color: rgba(255,255,255,0.7); font-size: 11px; margin-left: auto; }
+  .week-body { padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .wcell { border-radius: 8px; padding: 10px 12px; }
+  .wcell.full { grid-column: 1 / -1; }
+  .clabel { font-size: 10px; font-weight: 700; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; color: #888; }
+  .ctext { font-size: 12px; color: #333; line-height: 1.5; }
+  .deliv { grid-column: 1 / -1; border-radius: 8px; padding: 10px 12px; }
+  .deliv .clabel { color: rgba(255,255,255,0.6); }
+  .deliv .ctext { color: white; font-weight: 600; font-size: 12px; }
+
+  /* ARCHITECTURE FLOW */
+  .arch-flow { display: flex; flex-direction: column; gap: 0; }
+  .arch-step { display: flex; align-items: stretch; }
+  .arch-step-left { display: flex; flex-direction: column; align-items: center; width: 56px; flex-shrink: 0; }
+  .arch-step-num { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: white; flex-shrink: 0; z-index: 1; }
+  .arch-step-line { width: 3px; flex: 1; min-height: 20px; margin: 0 auto; }
+  .arch-step-card { flex: 1; background: white; border-radius: 12px; margin: 0 0 6px 12px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-left-width: 4px; border-left-style: solid; }
+  .arch-step-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .arch-step-emoji { font-size: 22px; }
+  .arch-step-title { font-weight: 800; font-size: 14px; color: #0D1B2A; }
+  .arch-step-tool { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-left: auto; }
+  .arch-step-desc { font-size: 12px; color: #555; line-height: 1.6; }
+  .arch-step-detail { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
+  .arch-arrow { text-align: center; color: #00B4D8; font-size: 20px; font-weight: 800; margin: 2px 0 2px 56px; }
+
+  /* RAG FLOW */
+  .rag-step { display: flex; align-items: stretch; }
+  .rag-left { display: flex; flex-direction: column; align-items: center; width: 48px; }
+  .rag-num { color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+  .rag-line { width: 2px; flex: 1; min-height: 20px; }
+  .rag-card { flex: 1; background: white; border-radius: 10px; margin: 0 0 10px 10px; padding: 12px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-left-width: 4px; border-left-style: solid; display: flex; align-items: center; gap: 12px; }
+  .rag-emoji { font-size: 22px; }
+  .rag-step-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; color: #888; }
+  .rag-step-text { font-size: 13px; font-weight: 600; color: #0D1B2A; }
+  .rag-step-sub { font-size: 11px; color: #666; margin-top: 2px; }
+
+  /* BUSINESS / ROI */
+  .exec-box { background: #0D1B2A; border-radius: 12px; padding: 24px; margin-bottom: 22px; color: white; }
+  .exec-title { font-size: 14px; font-weight: 800; color: #00B4D8; margin-bottom: 14px; }
+  .exec-point { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+  .exec-bullet { width: 7px; height: 7px; border-radius: 50%; background: #00B4D8; flex-shrink: 0; margin-top: 5px; }
+  .exec-text { font-size: 12px; color: rgba(255,255,255,0.85); line-height: 1.6; }
+  .exec-text strong { color: white; }
+
+  .sme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+  .sme-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-top: 4px solid; }
+  .sme-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .sme-name { font-size: 14px; font-weight: 800; color: #0D1B2A; margin-bottom: 2px; }
+  .sme-size { font-size: 10px; color: #888; margin-bottom: 10px; }
+  .sme-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid #F5F5F5; }
+  .sme-row .sk { color: #999; }
+  .sme-row .sv { font-weight: 700; color: #0D1B2A; }
+
+  .problem-card { background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 12px; border-left: 5px solid #E53935; }
+  .problem-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .problem-icon { font-size: 22px; }
+  .problem-title { font-weight: 800; font-size: 13px; color: #0D1B2A; }
+  .problem-text { font-size: 12px; color: #555; line-height: 1.6; margin-bottom: 8px; }
+  .problem-metric { background: #FFEBEE; border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #C62828; font-weight: 700; display: inline-block; margin-bottom: 6px; }
+  .problem-ref { font-size: 11px; color: #1565C0; }
+  .problem-ref a { color: #1565C0; text-decoration: none; font-weight: 600; }
+  .problem-ref a:hover { text-decoration: underline; }
+
+  .cost-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+  .cost-box { border-radius: 12px; padding: 20px; }
+  .cost-box.before { background: #FFEBEE; border: 2px solid #EF9A9A; }
+  .cost-box.after { background: #E0F2F1; border: 2px solid #80CBC4; }
+  .cost-box-title { font-weight: 800; font-size: 13px; margin-bottom: 12px; }
+  .cost-box.before .cost-box-title { color: #C62828; }
+  .cost-box.after .cost-box-title { color: #00695C; }
+  .cost-line { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(0,0,0,0.07); }
+  .cost-line .ck { color: #555; }
+  .cost-line .cv { font-weight: 700; }
+  .cost-box.before .cv { color: #E53935; }
+  .cost-box.after .cv { color: #00695C; }
+  .cost-total { display: flex; justify-content: space-between; font-size: 13px; font-weight: 800; padding: 8px 0 0; margin-top: 4px; }
+
+  .roi-hero { background: linear-gradient(135deg, #0D1B2A 0%, #00695C 100%); border-radius: 14px; padding: 32px 36px; color: white; margin-bottom: 22px; }
+  .roi-hero-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .roi-hero-sub { color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 22px; }
+  .roi-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .roi-kpi { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+  .roi-kpi-val { font-size: 26px; font-weight: 800; color: #00B4D8; margin-bottom: 4px; }
+  .roi-kpi-label { font-size: 10px; color: rgba(255,255,255,0.65); line-height: 1.4; }
+
+  .cost-table-wrap { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 22px; }
+  .cost-table { width: 100%; border-collapse: collapse; }
+  .cost-table th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #F8F9FA; color: #555; }
+  .cost-table td { padding: 10px 14px; font-size: 12px; color: #333; border-top: 1px solid #F0F0F0; }
+  .cost-table tfoot td { font-weight: 800; font-size: 12px; background: #0D1B2A; color: white; }
+  .green { color: #00695C; font-weight: 700; }
+  .red { color: #E53935; font-weight: 700; }
+  .blue { color: #1565C0; font-weight: 700; }
+
+  .roi-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .roi-bar-label { width: 76px; font-size: 10px; font-weight: 700; color: #555; flex-shrink: 0; }
+  .roi-bar-track { flex: 1; background: #F0F0F0; border-radius: 5px; height: 20px; overflow: hidden; }
+  .roi-bar-fill { height: 100%; border-radius: 5px; display: flex; align-items: center; padding-left: 8px; font-size: 10px; font-weight: 700; color: white; white-space: nowrap; }
+  .roi-bar-note { width: 130px; font-size: 10px; color: #555; font-weight: 600; flex-shrink: 0; }
+
+  .risk-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 10px; display: flex; gap: 12px; }
+  .risk-badge { border-radius: 5px; padding: 3px 9px; font-size: 9px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; height: fit-content; margin-top: 2px; }
+  .risk-high { background: #FFEBEE; color: #E53935; }
+  .risk-med { background: #FFF8E1; color: #F57F17; }
+  .risk-low { background: #E0F2F1; color: #00695C; }
+  .risk-title { font-weight: 800; font-size: 12px; color: #0D1B2A; margin-bottom: 3px; }
+  .risk-text { font-size: 11px; color: #555; line-height: 1.5; }
+  .risk-mit { font-size: 11px; color: #1565C0; font-weight: 600; margin-top: 4px; }
+
+  .ref-box { background: #F8F9FA; border: 1px solid #E0E0E0; border-radius: 10px; padding: 16px 18px; margin-top: 20px; }
+  .ref-box-title { font-weight: 800; font-size: 12px; color: #0D1B2A; margin-bottom: 10px; }
+  .ref-item { display: flex; gap: 8px; margin-bottom: 7px; font-size: 11px; align-items: flex-start; }
+  .ref-num { background: #0D1B2A; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .ref-item a { color: #1565C0; text-decoration: none; font-weight: 600; }
+  .ref-item a:hover { text-decoration: underline; }
+  .ref-item span { color: #777; }
+
+  .privacy-box { background: #E0F2F1; border: 1px solid #00695C; border-radius: 10px; padding: 14px 16px; display: flex; gap: 10px; margin-top: 14px; }
+  .privacy-title { font-weight: 800; color: #00695C; font-size: 12px; margin-bottom: 3px; }
+  .privacy-text { font-size: 11px; color: #333; line-height: 1.6; }
+
+  .print-btn { position: fixed; bottom: 24px; right: 24px; background: #00B4D8; color: white; border: none; border-radius: 50px; padding: 11px 20px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(0,180,216,0.4); font-family: 'Inter', sans-serif; z-index: 999; }
+  .print-btn:hover { background: #0096B4; }
+
+  @media print {
+    .tabs, .print-btn { display: none !important; }
+    .tab-panel { display: block !important; page-break-before: always; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-icon">🔒</div>
+    <div>
+      <div class="header-title">VaultMind</div>
+      <div class="header-sub">Complete Project Document with Business Case — Local LLM Knowledge Management System for SMEs</div>
+    </div>
+    <div class="badge">Target: May 2026</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('cover',this)">🏠 Overview</button>
+    <button class="tab-btn" onclick="switchTab('business',this)">💼 Business Case</button>
+    <button class="tab-btn" onclick="switchTab('roi',this)">📈 ROI & Financials</button>
+    <button class="tab-btn" onclick="switchTab('tech',this)">🛠️ Tech Stack</button>
+    <button class="tab-btn" onclick="switchTab('roadmap',this)">📅 Roadmap</button>
+    <button class="tab-btn" onclick="switchTab('arch',this)">🏗️ Architecture</button>
+    <button class="tab-btn" onclick="switchTab('rag',this)">🔄 RAG Flow</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ===== COVER ===== -->
+<div id="panel-cover" class="tab-panel active">
+  <div class="cover-box">
+    <div class="cover-logo">🔒</div>
+    <div class="cover-title">VaultMind</div>
+    <div class="cover-tagline">Private AI Knowledge Assistant — Built for SMEs</div>
+    <div class="cover-desc">VaultMind is a fully private, on-premise AI assistant that lets every employee query your entire company document library in plain English — with zero data leaving your network, zero cloud subscriptions, and zero per-user fees. Built for small to medium enterprises that need enterprise-grade AI without enterprise-grade risk or cost.</div>
+    <div class="cover-meta">
+      <div class="cover-meta-item"><div class="cover-meta-label">Project Start</div><div class="cover-meta-value">Mar 14, 2026</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Target Launch</div><div class="cover-meta-value">May 1, 2026</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Duration</div><div class="cover-meta-value">6 Weeks</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Team</div><div class="cover-meta-value">2 Engineers</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Deployment</div><div class="cover-meta-value">100% On-Premise</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Target Market</div><div class="cover-meta-value">SME (50–500 Staff)</div></div>
+      <div class="cover-meta-item"><div class="cover-meta-label">Year 1 ROI</div><div class="cover-meta-value">300%–700%</div></div>
+    </div>
+  </div>
+
+  <div class="section-title">What VaultMind Does</div>
+  <div class="section-sub">Six core capabilities delivered to SME organisations</div>
+  <div class="card-grid col3">
+    <div class="card card-top" style="border-top-color:#1565C0;"><div class="card-icon">💬</div><div class="card-title">Natural Language Q&A</div><div class="card-text">Ask any question in plain English. Get accurate answers from your own documents in under 10 seconds — with source citations.</div></div>
+    <div class="card card-top" style="border-top-color:#00695C;"><div class="card-icon">🔒</div><div class="card-title">100% Private & Local</div><div class="card-text">All AI processing on your own server. Zero data sent to OpenAI, Microsoft, or any cloud. Full data sovereignty guaranteed.</div></div>
+    <div class="card card-top" style="border-top-color:#E65100;"><div class="card-icon">📄</div><div class="card-title">All Document Types</div><div class="card-text">PDFs, Word docs, Excel, PowerPoint, images — your entire document library indexed and instantly searchable.</div></div>
+    <div class="card card-top" style="border-top-color:#880E4F;"><div class="card-icon">🔐</div><div class="card-title">Role-Based Access</div><div class="card-text">HR sees only HR docs. Finance sees only Finance docs. Enforced via JWT tokens — granular, department-level control.</div></div>
+    <div class="card card-top" style="border-top-color:#4527A0;"><div class="card-icon">📎</div><div class="card-title">Source Citations</div><div class="card-text">Every answer references the exact document and page number — auditable, trustworthy, compliance-ready.</div></div>
+    <div class="card card-top" style="border-top-color:#37474F;"><div class="card-icon">📊</div><div class="card-title">Full Audit Logging</div><div class="card-text">Complete trail of who asked what, when, and which documents were used. Satisfies GDPR & ISO 27001 requirements.</div></div>
+  </div>
+
+  <div class="mvp-box">
+    <div class="mvp-title">⚡ Core Technology Stack — Zero Licensing Cost</div>
+    <div class="mvp-sub">All open-source, all self-hosted, all running inside Docker on your own hardware</div>
+    <div class="mvp-items">
+      <div class="mvp-item"><span>🤖</span>Ollama — LLM Runner</div>
+      <div class="mvp-item"><span>🧠</span>Model via Ollama Library</div>
+      <div class="mvp-item"><span>⚙️</span>LangChain — RAG Pipeline</div>
+      <div class="mvp-item"><span>🗄️</span>ChromaDB — Vector Store</div>
+      <div class="mvp-item"><span>📄</span>PyMuPDF — Document Parser</div>
+      <div class="mvp-item"><span>🔢</span>HuggingFace + Ollama Embeddings</div>
+      <div class="mvp-item"><span>🖥️</span>Streamlit — UI</div>
+      <div class="mvp-item"><span>🐍</span>Python / FastAPI — Backend</div>
+      <div class="mvp-item"><span>🔑</span>JWT Tokens — Security</div>
+      <div class="mvp-item"><span>🐳</span>Docker + LocalStack</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BUSINESS CASE ===== -->
+<div id="panel-business" class="tab-panel">
+
+  <div class="exec-box">
+    <div class="exec-title">📋 Executive Summary</div>
+    <div class="exec-point"><div class="exec-bullet"></div><div class="exec-text"><strong>Problem:</strong> SMEs with 50–500 employees lose $200K–$900K+ annually to information search waste, cloud AI subscription costs, compliance risk from shadow AI usage, and slow onboarding — all measurable, all preventable.</div></div>
+    <div class="exec-point"><div class="exec-bullet"></div><div class="exec-text"><strong>Root Cause:</strong> Cloud AI tools like ChatGPT Enterprise ($60/user/mo) and Microsoft Copilot ($30/user/mo) are expensive per-seat, expose confidential data to third-party servers, and don't know your company's specific documents.</div></div>
+    <div class="exec-point"><div class="exec-bullet"></div><div class="exec-text"><strong>Solution:</strong> VaultMind — a one-time-build, on-premise private AI that costs <strong>$36K–$67K to build</strong>, has <strong>zero ongoing per-user fees</strong>, keeps all data on your servers, and pays for itself in under 3 months.</div></div>
+    <div class="exec-point"><div class="exec-bullet"></div><div class="exec-text"><strong>Why Local LLM over Cloud API:</strong> A 175-person SME calling GPT-4o API for document Q&A pays approximately <strong>$8,400–$14,400/year in API token costs alone</strong> — on top of subscription fees. Running Llama 3 or Mistral locally via Ollama costs <strong>$0 in API fees</strong>, with only electricity overhead (~$1,800/yr). Over 3 years, the saving on API costs alone exceeds <strong>$35,000</strong>.</div></div>
+  </div>
+
+  <div class="section-title">📏 SME Target Scenarios</div>
+  <div class="section-sub">Three reference SME profiles used for all financial modelling in this document</div>
+  <div class="sme-grid">
+    <div class="sme-card" style="border-top-color:#1565C0;">
+      <div class="sme-label" style="color:#1565C0;">Scenario A</div>
+      <div class="sme-name">Small Enterprise</div>
+      <div class="sme-size">50–100 employees · $5M–$20M revenue</div>
+      <div class="sme-row"><span class="sk">Headcount modelled</span><span class="sv">75 staff</span></div>
+      <div class="sme-row"><span class="sk">Avg. loaded hourly cost</span><span class="sv">$26/hr</span></div>
+      <div class="sme-row"><span class="sk">Current cloud AI cost/yr</span><span class="sv" style="color:#E53935;">$27,000</span></div>
+      <div class="sme-row"><span class="sk">Est. annual savings</span><span class="sv" style="color:#00695C;">$195,000</span></div>
+      <div class="sme-row"><span class="sk">Payback period</span><span class="sv">~3.5 months</span></div>
+    </div>
+    <div class="sme-card" style="border-top-color:#4527A0;">
+      <div class="sme-label" style="color:#4527A0;">Scenario B</div>
+      <div class="sme-name">Mid-Market SME</div>
+      <div class="sme-size">100–250 employees · $20M–$80M revenue</div>
+      <div class="sme-row"><span class="sk">Headcount modelled</span><span class="sv">175 staff</span></div>
+      <div class="sme-row"><span class="sk">Avg. loaded hourly cost</span><span class="sv">$30/hr</span></div>
+      <div class="sme-row"><span class="sk">Current cloud AI cost/yr</span><span class="sv" style="color:#E53935;">$63,000</span></div>
+      <div class="sme-row"><span class="sk">Est. annual savings</span><span class="sv" style="color:#00695C;">$419,000</span></div>
+      <div class="sme-row"><span class="sk">Payback period</span><span class="sv">~2.5 months</span></div>
+    </div>
+    <div class="sme-card" style="border-top-color:#00695C;">
+      <div class="sme-label" style="color:#00695C;">Scenario C</div>
+      <div class="sme-name">Upper SME</div>
+      <div class="sme-size">250–500 employees · $80M–$250M revenue</div>
+      <div class="sme-row"><span class="sk">Headcount modelled</span><span class="sv">375 staff</span></div>
+      <div class="sme-row"><span class="sk">Avg. loaded hourly cost</span><span class="sv">$33/hr</span></div>
+      <div class="sme-row"><span class="sk">Current cloud AI cost/yr</span><span class="sv" style="color:#E53935;">$135,000</span></div>
+      <div class="sme-row"><span class="sk">Est. annual savings</span><span class="sv" style="color:#00695C;">$918,000</span></div>
+      <div class="sme-row"><span class="sk">Payback period</span><span class="sv">~1.8 months</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">🔄 Cloud AI vs. Local LLM — True Cost Comparison</div>
+  <div class="section-sub">What SMEs are actually paying for cloud AI today vs. what VaultMind costs to run — Scenario B (175 staff)</div>
+  <div class="cost-compare">
+    <div class="cost-box before">
+      <div class="cost-box-title">❌ Before VaultMind — Cloud AI Costs (Annual)</div>
+      <div class="cost-line"><span class="ck">Microsoft Copilot M365 · 175 users × $30/mo</span><span class="cv">$63,000</span></div>
+      <div class="cost-line"><span class="ck">GPT-4o API calls (doc Q&A · ~5M tokens/mo)</span><span class="cv">$10,800</span></div>
+      <div class="cost-line"><span class="ck">OpenAI ChatGPT Team subscriptions (ad-hoc)</span><span class="cv">$7,560</span></div>
+      <div class="cost-line"><span class="ck">Data breach liability — shadow AI risk (amortised)</span><span class="cv">$15,000</span></div>
+      <div class="cost-line"><span class="ck">IT time managing cloud AI tools & compliance</span><span class="cv">$12,000</span></div>
+      <div class="cost-total"><span>TOTAL ANNUAL CLOUD AI COST</span><span style="color:#E53935;">$108,360</span></div>
+    </div>
+    <div class="cost-box after">
+      <div class="cost-box-title">✅ After VaultMind — Local LLM Annual Costs</div>
+      <div class="cost-line"><span class="ck">LLM API fees (Ollama local — zero token cost)</span><span class="cv">$0</span></div>
+      <div class="cost-line"><span class="ck">Software licenses (all open-source)</span><span class="cv">$0</span></div>
+      <div class="cost-line"><span class="ck">Per-user subscription fees</span><span class="cv">$0</span></div>
+      <div class="cost-line"><span class="ck">Server electricity (24/7 GPU workstation)</span><span class="cv">$1,800</span></div>
+      <div class="cost-line"><span class="ck">Annual maintenance & model updates</span><span class="cv">$6,000</span></div>
+      <div class="cost-total"><span>TOTAL ANNUAL RUNNING COST</span><span style="color:#00695C;">$7,800</span></div>
+    </div>
+  </div>
+  <div style="background:#E3F2FD;border:1px solid #1565C0;border-radius:8px;padding:12px 16px;font-size:12px;color:#0D1B2A;margin-bottom:22px;font-weight:600;">
+    💡 <strong>Net Annual Saving on AI tooling alone: $100,560</strong> — VaultMind's build cost ($52,000 avg.) is recovered entirely from this single saving category in under 7 months, before counting productivity or onboarding savings.
+  </div>
+
+  <div class="section-title">🚨 Five Business Problems — Quantified</div>
+  <div class="section-sub">Measurable costs every SME incurs without VaultMind — with research citations</div>
+
+  <div class="problem-card">
+    <div class="problem-header"><div class="problem-icon">⏱️</div><div class="problem-title">Problem 1 — Employees waste 1.8–2.5 hours/day searching for information</div></div>
+    <div class="problem-text">McKinsey (2012) found knowledge workers spend <strong>19% of working time</strong> searching for and gathering information. IDC puts the figure at <strong>2.5 hours/day</strong>. For a 175-person SME at $30/hr average loaded cost, that is <strong>$984,375/year in wasted labour</strong>. VaultMind eliminates 70–80% of that search time — recovering $689,000–$787,000 in annual productivity from search waste alone.</div>
+    <div class="problem-metric">📊 175-person SME: $984,375/yr in search-time waste · VaultMind recovers ~$690,000</div>
+    <div class="problem-ref">📚 <a href="https://www.mckinsey.com/industries/technology-media-and-telecommunications/our-insights/the-social-economy" target="_blank">McKinsey Global Institute — The Social Economy (2012)</a> · <a href="https://www.idc.com/getdoc.jsp?containerId=US49711923" target="_blank">IDC — The High Cost of Not Finding Information</a></div>
+  </div>
+
+  <div class="problem-card">
+    <div class="problem-header"><div class="problem-icon">🔓</div><div class="problem-title">Problem 2 — Shadow AI exposes confidential data to third-party servers daily</div></div>
+    <div class="problem-text">Cyberhaven (2024) found <strong>11% of data employees paste into ChatGPT is confidential</strong>. Samsung banned ChatGPT after engineers uploaded proprietary source code. GDPR fines reach <strong>€20M or 4% of global annual turnover</strong>. IBM's 2024 report puts the average SMB data breach cost at <strong>$3.31M</strong>. Most SMEs have no monitoring or controls in place. VaultMind eliminates shadow AI by providing a sanctioned, private alternative that IT fully controls.</div>
+    <div class="problem-metric">⚠️ Average SMB data breach: $3.31M (IBM 2024) · GDPR max fine: €20M · Shadow AI: detected in 85% of enterprises</div>
+    <div class="problem-ref">📚 <a href="https://cyberhaven.com/blog/4-2-of-workers-have-pasted-company-data-into-chatgpt" target="_blank">Cyberhaven — AI Data Leakage Research (2024)</a> · <a href="https://www.ibm.com/reports/data-breach" target="_blank">IBM Cost of a Data Breach Report 2024</a> · <a href="https://gdpr.eu/fines/" target="_blank">GDPR.eu — Fines & Penalties</a></div>
+  </div>
+
+  <div class="problem-card">
+    <div class="problem-header"><div class="problem-icon">🐢</div><div class="problem-title">Problem 3 — Onboarding costs $15,000–$30,000 per new hire in ramp-up time</div></div>
+    <div class="problem-text">SHRM reports direct onboarding cost at <strong>$4,700/hire</strong>. When productivity loss during the 3–9 month ramp-up is included, true cost reaches <strong>50–200% of annual salary</strong>. For an SME hiring 15–30 people/year at $62K avg. salary, that is <strong>$465,000–$1.86M/yr</strong> in onboarding friction. VaultMind cuts time-to-productivity by 40–60% by giving new hires instant answers to any company knowledge question.</div>
+    <div class="problem-metric">📊 15 hires/yr at $20K avg. onboarding cost = $300,000/yr · VaultMind saves 50% = $150,000</div>
+    <div class="problem-ref">📚 <a href="https://www.shrm.org/topics-tools/news/talent-acquisition/shrm-finds-average-cost-per-hire-falls-nearly-500" target="_blank">SHRM — Average Cost Per Hire & Onboarding</a> · <a href="https://www.gallup.com/workplace/247391/fixable-problem-costs-businesses-trillion.aspx" target="_blank">Gallup — The Cost of Poor Onboarding</a></div>
+  </div>
+
+  <div class="problem-card">
+    <div class="problem-header"><div class="problem-icon">💰</div><div class="problem-title">Problem 4 — Cloud AI subscription costs scale with headcount, with no ceiling</div></div>
+    <div class="problem-text">Microsoft Copilot for M365 costs <strong>$30/user/month ($360/yr)</strong>. ChatGPT Enterprise costs <strong>$60/user/month ($720/yr)</strong>. GPT-4o API pricing is <strong>$2.50 per 1M input tokens / $10.00 per 1M output tokens</strong> — a 175-person team running regular document Q&A generates 5–8M tokens/month, costing <strong>$12,500–$80,000/year in API fees alone</strong>. VaultMind runs on open-source models via Ollama at <strong>$0 per token</strong>, forever, regardless of headcount.</div>
+    <div class="problem-metric">📊 175-person SME: $63,000–$143,000/yr in cloud AI costs → $0 with VaultMind</div>
+    <div class="problem-ref">📚 <a href="https://openai.com/api/pricing" target="_blank">OpenAI API Pricing — GPT-4o (2025)</a> · <a href="https://www.microsoft.com/en-us/microsoft-365/business/copilot-for-microsoft-365" target="_blank">Microsoft Copilot M365 Pricing</a> · <a href="https://openai.com/enterprise" target="_blank">ChatGPT Enterprise Pricing</a></div>
+  </div>
+
+  <div class="problem-card">
+    <div class="problem-header"><div class="problem-icon">🧠</div><div class="problem-title">Problem 5 — Institutional knowledge walks out the door with senior departures</div></div>
+    <div class="problem-text">Deloitte estimates replacing a senior employee costs <strong>1.5–2× their annual salary</strong> when knowledge transfer failure is included. For SMEs with $80K senior roles, each departure costs <strong>$120,000–$160,000</strong>. With 3–5 senior departures per year, that is <strong>$360,000–$800,000/yr</strong> in knowledge loss. VaultMind captures and preserves institutional knowledge permanently — making the business resilient to any departure.</div>
+    <div class="problem-metric">📊 3 senior departures/yr at $80K avg. salary = $360,000–$480,000 total replacement cost</div>
+    <div class="problem-ref">📚 <a href="https://www2.deloitte.com/us/en/insights/focus/human-capital-trends/2020/reskilling-the-workforce-to-be-resilient.html" target="_blank">Deloitte Human Capital Trends — Knowledge Retention (2020)</a> · <a href="https://www.gallup.com/workplace/247391/fixable-problem-costs-businesses-trillion.aspx" target="_blank">Gallup — Cost of Employee Turnover</a></div>
+  </div>
+
+  <div class="ref-box">
+    <div class="ref-box-title">📚 Additional Research — Enterprise AI ROI & Local LLM</div>
+    <div class="ref-item"><div class="ref-num">1</div><div><a href="https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai" target="_blank">McKinsey — Economic Potential of Generative AI (2023)</a> <span>— GenAI adds $2.6–4.4T/yr globally; knowledge worker productivity gains of 20–45%</span></div></div>
+    <div class="ref-item"><div class="ref-num">2</div><div><a href="https://www.forrester.com/report/the-total-economic-impact-of-microsoft-365-copilot/RES180785" target="_blank">Forrester TEI — AI Assistant ROI Study (2024)</a> <span>— 312% ROI; 3.6 hrs/week saved per knowledge worker; 6-month enterprise payback</span></div></div>
+    <div class="ref-item"><div class="ref-num">3</div><div><a href="https://arxiv.org/abs/2005.11401" target="_blank">Lewis et al. — Retrieval-Augmented Generation (RAG) Paper (2020)</a> <span>— Original RAG research from Facebook AI; factual grounding and accuracy advantages over pure LLM</span></div></div>
+    <div class="ref-item"><div class="ref-num">4</div><div><a href="https://www.gartner.com/en/newsroom/press-releases/2024-03-27-gartner-predicts-rag-will-be-adopted-by-80-percent-of-llm-applications-by-2026" target="_blank">Gartner — RAG in 80% of LLM Apps by 2026 (2024)</a> <span>— RAG reduces hallucination by 40%; on-premise deployment is top enterprise priority</span></div></div>
+    <div class="ref-item"><div class="ref-num">5</div><div><a href="https://ollama.com" target="_blank">Ollama — Local LLM Runtime</a> <span>— Enables zero-cost, zero-API, private LLM inference on commodity GPU hardware</span></div></div>
+  </div>
+</div>
+
+<!-- ===== ROI & FINANCIALS ===== -->
+<div id="panel-roi" class="tab-panel">
+  <div class="roi-hero">
+    <div class="roi-hero-title">📈 ROI & Financial Summary — VaultMind for SMEs</div>
+    <div class="roi-hero-sub">Conservative projections · Scenario B baseline (175-person SME) · All figures USD · 12-month horizon</div>
+    <div class="roi-kpi-row">
+      <div class="roi-kpi"><div class="roi-kpi-val">$52K</div><div class="roi-kpi-label">One-Time Build Cost (avg.)</div></div>
+      <div class="roi-kpi"><div class="roi-kpi-val">$419K</div><div class="roi-kpi-label">Year 1 Annual Savings (175-person)</div></div>
+      <div class="roi-kpi"><div class="roi-kpi-val">706%</div><div class="roi-kpi-label">Year 1 ROI (Scenario B)</div></div>
+      <div class="roi-kpi"><div class="roi-kpi-val">~2.5mo</div><div class="roi-kpi-label">Payback Period</div></div>
+    </div>
+  </div>
+
+  <div class="section-title">💸 Build Investment — One-Time Cost</div>
+  <div class="section-sub">What it costs to build and deploy VaultMind — applicable across all SME scenarios</div>
+  <div class="cost-table-wrap">
+    <table class="cost-table">
+      <thead><tr><th>Item</th><th>Details</th><th>Low</th><th>High</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Engineer 1 — 6 Weeks</strong></td><td>Senior AI/backend engineer · $10K–$14K/mo contract rate</td><td class="blue">$15,000</td><td class="blue">$21,000</td></tr>
+        <tr><td><strong>Engineer 2 — 6 Weeks</strong></td><td>Backend/DevOps engineer · $7K–$11K/mo</td><td class="blue">$10,500</td><td class="blue">$16,500</td></tr>
+        <tr><td><strong>GPU Server Hardware</strong></td><td>NVIDIA RTX 4090 workstation or refurb A100 — scales with SME size</td><td class="blue">$6,000</td><td class="blue">$20,000</td></tr>
+        <tr><td><strong>NVMe Storage (2–8 TB)</strong></td><td>Document library + OS storage</td><td class="blue">$400</td><td class="blue">$1,200</td></tr>
+        <tr><td><strong>Network (if needed)</strong></td><td>Gigabit LAN / VLAN setup — only if not already present</td><td class="blue">$500</td><td class="blue">$2,500</td></tr>
+        <tr><td><strong>Software Licenses</strong></td><td>Ollama, LangChain, ChromaDB, Streamlit, FastAPI — all open-source</td><td class="green">$0</td><td class="green">$0</td></tr>
+        <tr><td><strong>LLM Models</strong></td><td>Llama 3, Mistral, Qwen — open-source, pulled via Ollama, $0 cost</td><td class="green">$0</td><td class="green">$0</td></tr>
+        <tr><td><strong>Contingency (10%)</strong></td><td>Scope buffer</td><td class="blue">$3,240</td><td class="blue">$6,120</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="2"><strong>TOTAL ONE-TIME INVESTMENT</strong></td><td><strong>$35,640</strong></td><td><strong>$67,320</strong></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="section-title">💰 Annual Savings Breakdown — All Three SME Scenarios</div>
+  <div class="section-sub">Recurring savings every year after VaultMind goes live — conservative estimates</div>
+  <div class="cost-table-wrap">
+    <table class="cost-table">
+      <thead><tr><th>Saving Category</th><th>Basis</th><th>Scenario A (75)</th><th>Scenario B (175)</th><th>Scenario C (375)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Productivity Recovery</strong></td><td>45 min/day saved × staff × 250 days × hourly rate</td><td class="green">$73,125</td><td class="green">$196,875</td><td class="green">$464,063</td></tr>
+        <tr><td><strong>Eliminated Cloud AI SaaS</strong></td><td>$30–$60/user/mo (Copilot / ChatGPT) × all staff × 12</td><td class="green">$27,000</td><td class="green">$63,000</td><td class="green">$135,000</td></tr>
+        <tr><td><strong>Eliminated API Token Costs</strong></td><td>GPT-4o API at $2.50/1M tokens · 3–8M tokens/month usage</td><td class="green">$9,000</td><td class="green">$12,600</td><td class="green">$28,800</td></tr>
+        <tr><td><strong>Faster Onboarding</strong></td><td>10–30 hires/yr × $8K–$12K ramp-up saving per hire</td><td class="green">$40,000</td><td class="green">$75,000</td><td class="green">$150,000</td></tr>
+        <tr><td><strong>Compliance Risk Avoided</strong></td><td>Amortised GDPR / breach liability — shadow AI eliminated</td><td class="green">$15,000</td><td class="green">$30,000</td><td class="green">$60,000</td></tr>
+        <tr><td><strong>Knowledge Retention</strong></td><td>2–5 senior departures/yr × reduced knowledge transfer cost</td><td class="green">$20,000</td><td class="green">$40,000</td><td class="green">$80,000</td></tr>
+        <tr><td><strong>Reduced IT Support Load</strong></td><td>Fewer "find document" tickets — IT hours reclaimed</td><td class="green">$8,000</td><td class="green">$18,000</td><td class="green">$35,000</td></tr>
+        <tr><td><strong>Annual Running Costs</strong></td><td>Electricity + maintenance (on-premise server)</td><td class="red">-$7,800</td><td class="red">-$7,800</td><td class="red">-$9,600</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="2"><strong>NET ANNUAL SAVINGS</strong></td><td class="green"><strong>$184,325</strong></td><td class="green"><strong>$427,675</strong></td><td class="green"><strong>$943,263</strong></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div style="background:white;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:22px;">
+    <div style="font-weight:800;font-size:14px;color:#0D1B2A;margin-bottom:14px;">📊 ROI Accumulation — Scenario B (175-person SME, Conservative)</div>
+    <div class="roi-bar-row">
+      <div class="roi-bar-label">Month 1–2</div>
+      <div class="roi-bar-track"><div class="roi-bar-fill" style="width:8%;background:#E53935;">-$52K</div></div>
+      <div class="roi-bar-note" style="color:#E53935;">Build investment deployed</div>
+    </div>
+    <div class="roi-bar-row">
+      <div class="roi-bar-label">Month 2.5</div>
+      <div class="roi-bar-track"><div class="roi-bar-fill" style="width:12%;background:#F57F17;">~$0</div></div>
+      <div class="roi-bar-note" style="color:#F57F17;">Break-even point reached</div>
+    </div>
+    <div class="roi-bar-row">
+      <div class="roi-bar-label">Month 6</div>
+      <div class="roi-bar-track"><div class="roi-bar-fill" style="width:42%;background:#1565C0;">+$161K net</div></div>
+      <div class="roi-bar-note" style="color:#1565C0;">Strong positive territory</div>
+    </div>
+    <div class="roi-bar-row">
+      <div class="roi-bar-label">Month 12</div>
+      <div class="roi-bar-track"><div class="roi-bar-fill" style="width:76%;background:#00695C;">+$375K net</div></div>
+      <div class="roi-bar-note" style="color:#00695C;">End of Year 1</div>
+    </div>
+    <div class="roi-bar-row">
+      <div class="roi-bar-label">Year 2</div>
+      <div class="roi-bar-track"><div class="roi-bar-fill" style="width:100%;background:#2E7D32;">+$803K cumulative</div></div>
+      <div class="roi-bar-note" style="color:#2E7D32;">Pure net savings — no rebuild</div>
+    </div>
+  </div>
+
+  <div class="section-title">📅 3-Year Financial Projection — Scenario B (175-person SME)</div>
+  <div class="section-sub">Conservative growth of 8% annually in savings as usage and document library expand</div>
+  <div class="cost-table-wrap">
+    <table class="cost-table">
+      <thead><tr><th>Year</th><th>Investment</th><th>Gross Savings</th><th>Net Benefit</th><th>Cumulative Net</th><th>ROI</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Year 1 (2026)</strong></td><td class="red">-$52,000 (build)</td><td class="green">+$427,675</td><td class="green">+$375,675</td><td class="green">+$375,675</td><td class="blue">722%</td></tr>
+        <tr><td><strong>Year 2 (2027)</strong></td><td class="red">-$7,800 (maintenance)</td><td class="green">+$462,000</td><td class="green">+$454,200</td><td class="green">+$829,875</td><td class="blue">1,596%</td></tr>
+        <tr><td><strong>Year 3 (2028)</strong></td><td class="red">-$7,800 (maintenance)</td><td class="green">+$499,000</td><td class="green">+$491,200</td><td class="green">+$1,321,075</td><td class="blue">2,540%</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="3"><strong>3-YEAR TOTAL NET BENEFIT</strong></td><td colspan="2" class="green"><strong>+$1,321,075</strong></td><td><strong>2,540%</strong></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="section-title">⚠️ Risk Assessment</div>
+  <div class="section-sub">Key risks and mitigations for SME deployment</div>
+  <div class="risk-card"><div><div class="risk-badge risk-high">HIGH</div></div><div><div class="risk-title">Hardware Procurement Delays</div><div class="risk-text">GPU shortages can delay delivery past Week 1. Use RunPod or Lambda Labs cloud GPU as temporary dev environment — switch to on-premise for production go-live.</div><div class="risk-mit">→ Order hardware Day 1 of project. Cloud GPU fallback pre-configured and ready.</div></div></div>
+  <div class="risk-card"><div><div class="risk-badge risk-high">HIGH</div></div><div><div class="risk-title">Answer Hallucination Risk</div><div class="risk-text">LLM may generate plausible but incorrect answers — critical risk for compliance-sensitive SMEs in legal, finance, or healthcare.</div><div class="risk-mit">→ Strict RAG-only mode enforced. Source citations mandatory on every response. Confidence scoring + UAT before launch.</div></div></div>
+  <div class="risk-card"><div><div class="risk-badge risk-med">MEDIUM</div></div><div><div class="risk-title">Employee Adoption Resistance</div><div class="risk-text">Staff may default to old habits — emailing colleagues instead of querying VaultMind.</div><div class="risk-mit">→ Pilot with 5–10 champions first. Gather testimonials. Live demo at company all-hands. Simple one-page onboarding guide.</div></div></div>
+  <div class="risk-card"><div><div class="risk-badge risk-low">LOW</div></div><div><div class="risk-title">Model Licensing Changes</div><div class="risk-text">Open-source model providers could change commercial licensing terms.</div><div class="risk-mit">→ Architecture is fully model-agnostic via Ollama. Any compatible model swapped in with zero code changes.</div></div></div>
+
+  <div class="ref-box">
+    <div class="ref-box-title">📚 ROI & Financial References</div>
+    <div class="ref-item"><div class="ref-num">1</div><div><a href="https://openai.com/api/pricing" target="_blank">OpenAI API Pricing — GPT-4o (2025)</a> <span>— $2.50/1M input tokens, $10.00/1M output tokens; basis for API cost elimination calculations</span></div></div>
+    <div class="ref-item"><div class="ref-num">2</div><div><a href="https://www.microsoft.com/en-us/microsoft-365/business/copilot-for-microsoft-365" target="_blank">Microsoft Copilot M365 Pricing</a> <span>— $30/user/month; per-seat cost eliminated by VaultMind's flat-cost model</span></div></div>
+    <div class="ref-item"><div class="ref-num">3</div><div><a href="https://www.forrester.com/report/the-total-economic-impact-of-microsoft-365-copilot/RES180785" target="_blank">Forrester — Total Economic Impact of AI Assistants (2024)</a> <span>— 312% ROI; 3.6 hrs/week saved per knowledge worker; 6-month payback</span></div></div>
+    <div class="ref-item"><div class="ref-num">4</div><div><a href="https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai" target="_blank">McKinsey — Economic Potential of Generative AI (2023)</a> <span>— 20–45% productivity gains for knowledge workers</span></div></div>
+    <div class="ref-item"><div class="ref-num">5</div><div><a href="https://www.ibm.com/reports/data-breach" target="_blank">IBM Cost of a Data Breach Report 2024</a> <span>— Average SMB breach $3.31M; shadow AI growing breach vector</span></div></div>
+    <div class="ref-item"><div class="ref-num">6</div><div><a href="https://cyberhaven.com/blog/4-2-of-workers-have-pasted-company-data-into-chatgpt" target="_blank">Cyberhaven — AI Data Leakage (2024)</a> <span>— 11% of ChatGPT inputs from employees contain confidential company data</span></div></div>
+  </div>
+</div>
+
+<!-- ===== TECH STACK ===== -->
+<div id="panel-tech" class="tab-panel">
+  <div class="section-title">🛠️ Tech Stack</div>
+  <div class="section-sub">One tool per layer — all open-source, 100% on-premise, zero licensing cost, zero cloud dependency</div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#1565C0;"><span>🖥️ Layer 1 — LLM Inference Engine: Ollama</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>Ollama</strong> (via Docker)</td><td>Runs all LLM models locally. Single-command setup, GPU-accelerated, OpenAI-compatible REST API. Acts as the unified runtime for both LLM inference and embedding generation. Zero cloud calls — all inference is local.</td><td><a href="https://ollama.com" target="_blank">ollama.com</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#283593;"><span>🤖 Layer 2 — Base LLM Model: Selected via Ollama Library at Setup</span></div>
+    <table class="tech-table">
+      <tr><th>Selection Method</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>Ollama Model Library</strong></td><td>No model hardcoded. The optimal model is pulled from Ollama's library at deployment time based on available GPU VRAM and performance testing — choose from Llama 3, Mistral, Qwen2.5, DeepSeek-R1. Fully swappable with zero code changes.</td><td><a href="https://ollama.com/library" target="_blank">ollama.com/library</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#4527A0;"><span>⚙️ Layer 3 — RAG Framework: LangChain</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>LangChain</strong></td><td>Orchestrates the full RAG pipeline — document loaders, text chunking, embedding generation, vector store retrieval, prompt construction, and LLM response formatting. Industry-standard, battle-tested, extensive connector library.</td><td><a href="https://www.langchain.com" target="_blank">langchain.com</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#00695C;"><span>🗄️ Layer 4 — Vector Database: ChromaDB</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>ChromaDB</strong></td><td>Stores and queries document embeddings locally. Lightweight, fully self-hosted, Python-native, no server infrastructure required. Ideal for SME document libraries (up to millions of chunks). Integrates natively with LangChain.</td><td><a href="https://www.trychroma.com" target="_blank">trychroma.com</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#E65100;"><span>📄 Layer 5 — Document Parsing: PyMuPDF (fitz)</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>PyMuPDF (fitz)</strong></td><td>Extracts text, tables, and metadata from PDFs with high accuracy and speed. Handles multi-page, scanned, and complex formatted documents. Lightweight Python library — no external service required. Also handles DOCX and image-based PDFs when combined with pytesseract.</td><td><a href="https://pymupdf.readthedocs.io" target="_blank">pymupdf.readthedocs.io</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#37474F;"><span>🔢 Layer 6 — Embedding Models: HuggingFace + Ollama</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>HuggingFace sentence-transformers + Ollama nomic-embed-text</strong></td><td>Converts document chunks and user queries into vector embeddings for semantic similarity search. HuggingFace provides access to state-of-the-art models (BGE-M3, all-MiniLM). Ollama's nomic-embed-text runs locally with zero API cost. Both options run entirely on-premise.</td><td><a href="https://www.sbert.net" target="_blank">sbert.net</a> · <a href="https://ollama.com/library/nomic-embed-text" target="_blank">Ollama Embed</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#BF360C;"><span>🖥️ Layer 7 — Frontend UI: Streamlit</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>Streamlit</strong></td><td>Builds the employee-facing chat interface in pure Python — no frontend development required. Renders chat history, source citations, document previews, and admin controls. Runs as a Docker container on the local network, accessible via browser.</td><td><a href="https://streamlit.io" target="_blank">streamlit.io</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#1B5E20;"><span>🐍 Layer 8 — Backend API: Python / FastAPI</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>Python + FastAPI</strong></td><td>Handles all backend logic — query routing, authentication middleware, document ingestion pipeline, ChromaDB interactions, Ollama API calls, and audit logging. FastAPI provides async REST endpoints with automatic OpenAPI documentation. Fast, lightweight, production-ready.</td><td><a href="https://fastapi.tiangolo.com" target="_blank">fastapi.tiangolo.com</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#880E4F;"><span>🔑 Layer 9 — Security & Access Control: JWT Tokens</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>JWT (JSON Web Tokens)</strong></td><td>Enforces role-based access control — each user receives a signed JWT containing department and permission claims. FastAPI middleware validates tokens on every request. Ensures HR staff only retrieves HR documents, Finance only retrieves Finance documents. Stateless, scalable, industry-standard.</td><td><a href="https://jwt.io" target="_blank">jwt.io</a></td></tr>
+    </table>
+  </div>
+
+  <div class="tech-section">
+    <div class="tech-section-hdr" style="background:#4A148C;"><span>🐳 Layer 10 — Deployment & Infrastructure: Docker + LocalStack</span></div>
+    <table class="tech-table">
+      <tr><th>Tool</th><th>Role & Rationale</th><th>Link</th></tr>
+      <tr><td><strong>Docker + Docker Compose + LocalStack</strong></td><td>All services (Ollama, FastAPI, ChromaDB, Streamlit) run as Docker containers orchestrated by Docker Compose. LocalStack emulates AWS services locally (S3, SQS) for document ingestion pipelines — without any actual cloud dependency. Single docker-compose up command deploys the entire system.</td><td><a href="https://www.docker.com" target="_blank">docker.com</a> · <a href="https://localstack.cloud" target="_blank">localstack.cloud</a></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== ROADMAP ===== -->
+<div id="panel-roadmap" class="tab-panel">
+  <div class="section-title">📅 6-Week Build Roadmap</div>
+  <div class="section-sub">March 14 — May 1, 2026 · 2 engineers · Sprint-based delivery</div>
+
+  <div class="timeline-bar">
+    <div class="tl-cell" style="background:#1565C0;"><div class="wk">WK 1</div><div class="dt">Mar 14–20</div></div>
+    <div class="tl-cell" style="background:#283593;"><div class="wk">WK 2</div><div class="dt">Mar 21–27</div></div>
+    <div class="tl-cell" style="background:#4527A0;"><div class="wk">WK 3</div><div class="dt">Mar 28–Apr 3</div></div>
+    <div class="tl-cell" style="background:#6A1B9A;"><div class="wk">WK 4</div><div class="dt">Apr 4–10</div></div>
+    <div class="tl-cell" style="background:#00695C;"><div class="wk">WK 5</div><div class="dt">Apr 11–17</div></div>
+    <div class="tl-cell" style="background:#2E7D32;"><div class="wk">WK 6</div><div class="dt">Apr 18–May 1</div></div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#1565C0;"><div class="week-icon">🏗️</div><div class="week-name">Week 1 — Infrastructure & Environment Setup</div><div class="week-dates">Mar 14–20</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#F0F4FF;"><div class="clabel">Engineer 1</div><div class="ctext">Server setup, NVIDIA drivers, Docker install, Ollama deployment, model pull & benchmark testing</div></div>
+      <div class="wcell" style="background:#F0F4FF;"><div class="clabel">Engineer 2</div><div class="ctext">Docker Compose scaffold, LocalStack setup, FastAPI project skeleton, JWT auth middleware stub</div></div>
+      <div class="deliv" style="background:#1565C0;"><div class="clabel">✅ Deliverable</div><div class="ctext">Working LLM responding to queries via Ollama API · Docker Compose environment running all base services</div></div>
+    </div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#283593;"><div class="week-icon">📄</div><div class="week-name">Week 2 — Document Ingestion Pipeline</div><div class="week-dates">Mar 21–27</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#F0F4FF;"><div class="clabel">Engineer 1</div><div class="ctext">PyMuPDF parser, text chunking strategy, HuggingFace embedding generation, ChromaDB ingestion pipeline</div></div>
+      <div class="wcell" style="background:#F0F4FF;"><div class="clabel">Engineer 2</div><div class="ctext">File watcher / document upload API, metadata tagging (department, author, date), ingestion logging</div></div>
+      <div class="deliv" style="background:#283593;"><div class="clabel">✅ Deliverable</div><div class="ctext">50+ test documents ingested, chunked, embedded & stored in ChromaDB · Semantic search returning relevant results</div></div>
+    </div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#4527A0;"><div class="week-icon">⚙️</div><div class="week-name">Week 3 — RAG Pipeline & Core Q&A Logic</div><div class="week-dates">Mar 28–Apr 3</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#F5F0FF;"><div class="clabel">Engineer 1</div><div class="ctext">LangChain RAG chain: query → embed → ChromaDB retrieve → prompt construction → Ollama LLM → response</div></div>
+      <div class="wcell" style="background:#F5F0FF;"><div class="clabel">Engineer 2</div><div class="ctext">Source citation attachment, confidence scoring, hallucination guard (RAG-only mode enforcement)</div></div>
+      <div class="deliv" style="background:#4527A0;"><div class="clabel">✅ Deliverable</div><div class="ctext">End-to-end Q&A working: question in → accurate cited answer out · RAG-only mode enforced · Latency under 8 seconds</div></div>
+    </div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#6A1B9A;"><div class="week-icon">🔐</div><div class="week-name">Week 4 — Security, Auth & Role-Based Access</div><div class="week-dates">Apr 4–10</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#F8F0FF;"><div class="clabel">Engineer 1</div><div class="ctext">JWT token issuance, department claim encoding, ChromaDB collection-level access filtering per user role</div></div>
+      <div class="wcell" style="background:#F8F0FF;"><div class="clabel">Engineer 2</div><div class="ctext">Audit logging (user, query, documents retrieved, timestamp), admin dashboard for user management</div></div>
+      <div class="deliv" style="background:#6A1B9A;"><div class="clabel">✅ Deliverable</div><div class="ctext">Role-based access enforced — Finance user cannot retrieve HR docs · Full audit log operational · Admin panel live</div></div>
+    </div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#00695C;"><div class="week-icon">🖥️</div><div class="week-name">Week 5 — Streamlit UI & Integration</div><div class="week-dates">Apr 11–17</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#E8F5E9;"><div class="clabel">Engineer 1</div><div class="ctext">Streamlit chat interface, message history, source citation cards with document name + page reference display</div></div>
+      <div class="wcell" style="background:#E8F5E9;"><div class="clabel">Engineer 2</div><div class="ctext">Login page, JWT session management in Streamlit, document upload UI for admins, full system integration test</div></div>
+      <div class="deliv" style="background:#00695C;"><div class="clabel">✅ Deliverable</div><div class="ctext">Complete working UI · Employee can log in, ask questions, see cited answers · Admin can upload new documents</div></div>
+    </div>
+  </div>
+
+  <div class="week-card">
+    <div class="week-hdr" style="background:#2E7D32;"><div class="week-icon">🚀</div><div class="week-name">Week 6 — UAT, Performance Tuning & Launch</div><div class="week-dates">Apr 18–May 1</div></div>
+    <div class="week-body">
+      <div class="wcell" style="background:#E8F5E9;"><div class="clabel">Engineer 1</div><div class="ctext">UAT with 5–10 pilot users, answer accuracy testing across departments, retrieval quality tuning</div></div>
+      <div class="wcell" style="background:#E8F5E9;"><div class="clabel">Engineer 2</div><div class="ctext">Performance optimisation, load testing, backup procedures, ops runbook, staff onboarding guide</div></div>
+      <div class="deliv" style="background:#2E7D32;"><div class="clabel">✅ Deliverable</div><div class="ctext">Production launch May 1 · All staff onboarded · Ops runbook complete · Monitoring live · VaultMind v1.0 deployed</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ARCHITECTURE ===== -->
+<div id="panel-arch" class="tab-panel">
+  <div class="section-title">🏗️ High-Level Architecture — Step-by-Step Flow</div>
+  <div class="section-sub">How VaultMind processes a user query from login to answered response — every step, every tool</div>
+
+  <div class="arch-flow">
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#1565C0;">1</div>
+        <div class="arch-step-line" style="background:#1565C0;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#1565C0;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">👤</div>
+          <div class="arch-step-title">Employee Opens VaultMind</div>
+          <div class="arch-step-tool" style="background:#E3F2FD;color:#1565C0;">Streamlit UI</div>
+        </div>
+        <div class="arch-step-desc">Employee navigates to VaultMind on their browser (local intranet URL). The Streamlit interface loads — a clean chat UI similar to ChatGPT, hosted entirely on your internal network. No internet connection required.</div>
+        <div class="arch-step-detail">Tool: Streamlit · Docker container · Accessible via http://vaultmind.local or internal IP</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#6A1B9A;">2</div>
+        <div class="arch-step-line" style="background:#6A1B9A;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#6A1B9A;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">🔑</div>
+          <div class="arch-step-title">Login & JWT Token Issued</div>
+          <div class="arch-step-tool" style="background:#F3E5F5;color:#6A1B9A;">JWT Auth</div>
+        </div>
+        <div class="arch-step-desc">Employee logs in with company credentials. FastAPI backend validates credentials and issues a signed JWT token containing the user's department, role, and access permissions. All subsequent requests carry this token — no re-authentication needed per session.</div>
+        <div class="arch-step-detail">Tool: Python FastAPI + python-jose JWT · Token contains: user_id, department, permissions, expiry</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#E65100;">3</div>
+        <div class="arch-step-line" style="background:#E65100;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#E65100;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">💬</div>
+          <div class="arch-step-title">Employee Types a Question</div>
+          <div class="arch-step-tool" style="background:#FBE9E7;color:#E65100;">Streamlit → FastAPI</div>
+        </div>
+        <div class="arch-step-desc">Employee types a natural language question (e.g. "What is our parental leave policy?" or "What were Q3 2025 revenue figures?"). Streamlit sends the query + JWT token to the FastAPI backend via a secure POST request on the local network.</div>
+        <div class="arch-step-detail">Tool: Streamlit chat_input → HTTP POST to FastAPI /query endpoint · JWT validated on every request</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#37474F;">4</div>
+        <div class="arch-step-line" style="background:#37474F;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#37474F;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">🔢</div>
+          <div class="arch-step-title">Query Converted to Vector Embedding</div>
+          <div class="arch-step-tool" style="background:#ECEFF1;color:#37474F;">HuggingFace / Ollama Embed</div>
+        </div>
+        <div class="arch-step-desc">FastAPI passes the user's question to the embedding model (HuggingFace sentence-transformer or Ollama nomic-embed-text). The model converts the text into a high-dimensional vector — a numerical representation of the question's semantic meaning.</div>
+        <div class="arch-step-detail">Tool: sentence-transformers (all-MiniLM-L6-v2) or nomic-embed-text via Ollama · Runs 100% locally · 384–768 dimensional vector output</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#00695C;">5</div>
+        <div class="arch-step-line" style="background:#00695C;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#00695C;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">🗄️</div>
+          <div class="arch-step-title">Semantic Search in ChromaDB</div>
+          <div class="arch-step-tool" style="background:#E0F2F1;color:#00695C;">ChromaDB</div>
+        </div>
+        <div class="arch-step-desc">The query vector is compared against all stored document chunk vectors in ChromaDB using cosine similarity. The top 3–5 most semantically relevant document chunks are retrieved. Access is filtered by the user's JWT department claim — a Finance user only searches Finance collections.</div>
+        <div class="arch-step-detail">Tool: ChromaDB collection.query() · Filters applied: department = JWT claim · Returns: top-k chunks + source metadata</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#4527A0;">6</div>
+        <div class="arch-step-line" style="background:#4527A0;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#4527A0;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">⚙️</div>
+          <div class="arch-step-title">LangChain Builds the Prompt</div>
+          <div class="arch-step-tool" style="background:#EDE7F6;color:#4527A0;">LangChain RAG</div>
+        </div>
+        <div class="arch-step-desc">LangChain constructs a structured prompt combining: (1) the retrieved document chunks as context, (2) the user's original question, and (3) system instructions enforcing RAG-only mode — the LLM is instructed to answer only from the provided context and to say "I don't know" if the answer isn't present.</div>
+        <div class="arch-step-detail">Tool: LangChain RetrievalQA chain · Prompt template enforces: context-grounded answers only · No hallucination outside retrieved docs</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#1565C0;">7</div>
+        <div class="arch-step-line" style="background:#1565C0;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#1565C0;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">🤖</div>
+          <div class="arch-step-title">Ollama LLM Generates the Answer</div>
+          <div class="arch-step-tool" style="background:#E3F2FD;color:#1565C0;">Ollama (Local LLM)</div>
+        </div>
+        <div class="arch-step-desc">The prompt is sent to Ollama's local REST API. The selected LLM (e.g. Llama 3 8B, Mistral 7B) processes the prompt entirely on your GPU — no internet required. The model generates a precise, context-grounded answer in natural language. Zero tokens sent to OpenAI or any external API.</div>
+        <div class="arch-step-detail">Tool: Ollama REST API (localhost:11434) · GPU-accelerated inference · Avg. response time: 3–8 seconds on RTX 4090</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#37474F;">8</div>
+        <div class="arch-step-line" style="background:#37474F;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#37474F;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">📝</div>
+          <div class="arch-step-title">Audit Log Written</div>
+          <div class="arch-step-tool" style="background:#ECEFF1;color:#37474F;">FastAPI + SQLite/Postgres</div>
+        </div>
+        <div class="arch-step-desc">Before returning the response, FastAPI writes a complete audit record: user ID, department, exact query text, documents retrieved (filenames + page numbers), timestamp, and response latency. This log satisfies GDPR Article 30 (Records of Processing Activities) and ISO 27001 requirements.</div>
+        <div class="arch-step-detail">Tool: FastAPI background task → SQLite or Postgres · Fields: user_id, query, sources[], timestamp, latency_ms</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+
+    <div class="arch-step">
+      <div class="arch-step-left">
+        <div class="arch-step-num" style="background:#2E7D32;">9</div>
+        <div class="arch-step-line" style="background:transparent;"></div>
+      </div>
+      <div class="arch-step-card" style="border-left-color:#2E7D32;">
+        <div class="arch-step-header">
+          <div class="arch-step-emoji">✅</div>
+          <div class="arch-step-title">Answer + Citations Displayed to Employee</div>
+          <div class="arch-step-tool" style="background:#E8F5E9;color:#2E7D32;">Streamlit UI</div>
+        </div>
+        <div class="arch-step-desc">The answer is streamed back to the Streamlit UI and displayed in the chat window. Below the answer, source citation cards show: document name, page number, and the exact extracted passage used. The employee can trust the answer — it came directly from a company document they have permission to access.</div>
+        <div class="arch-step-detail">Tool: Streamlit chat_message + expander cards for citations · Total round-trip: 4–10 seconds · Zero data left the building</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="privacy-box" style="margin-top:20px;">
+    <div style="font-size:22px;">🔒</div>
+    <div>
+      <div class="privacy-title">Privacy Guarantee — Every Step Above Happens Inside Your Network</div>
+      <div class="privacy-text">At no point in this 9-step flow does any data leave your servers. The LLM runs locally via Ollama. The vector database is local ChromaDB. The embeddings are generated locally. The UI is served locally. Your documents, your queries, and your answers never touch the internet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RAG FLOW ===== -->
+<div id="panel-rag" class="tab-panel">
+  <div class="section-title">🔄 RAG Pipeline — Detailed Flow</div>
+  <div class="section-sub">How Retrieval-Augmented Generation works inside VaultMind — document ingestion and query-time retrieval</div>
+
+  <div style="background:#0D1B2A;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:white;font-size:12px;line-height:1.7;">
+    <strong style="color:#00B4D8;">What is RAG?</strong> Retrieval-Augmented Generation is a technique where the LLM does NOT answer from its training data alone. Instead, it first <em>retrieves</em> the most relevant passages from your actual company documents, then <em>generates</em> an answer grounded in those passages. This eliminates hallucination and ensures every answer is traceable to a real source.
+  </div>
+
+  <div style="font-weight:800;font-size:13px;color:#0D1B2A;margin-bottom:12px;">📥 Phase 1 — Document Ingestion (One-Time Setup + Ongoing)</div>
+
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#E65100;">1</div><div class="rag-line" style="background:#E65100;"></div></div>
+    <div class="rag-card" style="border-left-color:#E65100;"><div class="rag-emoji">📁</div><div><div class="rag-step-label">Document Source</div><div class="rag-step-text">Admin uploads documents via Streamlit UI or drops files into a watched folder</div><div class="rag-step-sub">Supports: PDF, DOCX, XLSX, PPTX, TXT, images — all document types ingested automatically</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#E65100;">2</div><div class="rag-line" style="background:#E65100;"></div></div>
+    <div class="rag-card" style="border-left-color:#E65100;"><div class="rag-emoji">📄</div><div><div class="rag-step-label">Document Parsing</div><div class="rag-step-text">PyMuPDF (fitz) extracts raw text, tables, and metadata from each document</div><div class="rag-step-sub">Preserves: page numbers, headings, table structure, author, date — all stored as metadata</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#E65100;">3</div><div class="rag-line" style="background:#E65100;"></div></div>
+    <div class="rag-card" style="border-left-color:#E65100;"><div class="rag-emoji">✂️</div><div><div class="rag-step-label">Text Chunking</div><div class="rag-step-text">LangChain splits documents into overlapping chunks of 500–1000 tokens</div><div class="rag-step-sub">Overlap of 50–100 tokens preserves context across chunk boundaries — no information lost</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#E65100;">4</div><div class="rag-line" style="background:#E65100;"></div></div>
+    <div class="rag-card" style="border-left-color:#E65100;"><div class="rag-emoji">🔢</div><div><div class="rag-step-label">Embedding Generation</div><div class="rag-step-text">Each chunk converted to a vector embedding via HuggingFace or Ollama nomic-embed-text</div><div class="rag-step-sub">Vector captures semantic meaning — similar concepts cluster together, enabling semantic search</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#E65100;">5</div></div>
+    <div class="rag-card" style="border-left-color:#E65100;"><div class="rag-emoji">🗄️</div><div><div class="rag-step-label">Vector Storage</div><div class="rag-step-text">Embeddings + metadata stored in ChromaDB with department-level collection tagging</div><div class="rag-step-sub">Each chunk tagged with: source file, page, department, date ingested — enables filtered retrieval</div></div></div>
+  </div>
+
+  <div style="font-weight:800;font-size:13px;color:#0D1B2A;margin:20px 0 12px;">🔍 Phase 2 — Query-Time Retrieval & Generation (Every User Question)</div>
+
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#1565C0;">6</div><div class="rag-line" style="background:#1565C0;"></div></div>
+    <div class="rag-card" style="border-left-color:#1565C0;"><div class="rag-emoji">💬</div><div><div class="rag-step-label">User Query</div><div class="rag-step-text">Employee types question in Streamlit → FastAPI receives query + JWT token</div><div class="rag-step-sub">JWT decoded to extract department permissions — filters applied to ChromaDB search scope</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#1565C0;">7</div><div class="rag-line" style="background:#1565C0;"></div></div>
+    <div class="rag-card" style="border-left-color:#1565C0;"><div class="rag-emoji">🔢</div><div><div class="rag-step-label">Query Embedding</div><div class="rag-step-text">User's question embedded into vector using same embedding model as ingestion</div><div class="rag-step-sub">Critical: same model must be used for both ingestion and query — ensures vector space consistency</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#1565C0;">8</div><div class="rag-line" style="background:#1565C0;"></div></div>
+    <div class="rag-card" style="border-left-color:#1565C0;"><div class="rag-emoji">🎯</div><div><div class="rag-step-label">Semantic Retrieval</div><div class="rag-step-text">ChromaDB finds top-k chunks with highest cosine similarity to query vector</div><div class="rag-step-sub">k=3–5 chunks retrieved · Filtered by department · Returns chunk text + source metadata</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#4527A0;">9</div><div class="rag-line" style="background:#4527A0;"></div></div>
+    <div class="rag-card" style="border-left-color:#4527A0;"><div class="rag-emoji">📝</div><div><div class="rag-step-label">Prompt Construction</div><div class="rag-step-text">LangChain assembles: system instructions + retrieved context chunks + user question</div><div class="rag-step-sub">System prompt enforces: "Answer ONLY from the provided context. If unsure, say I don't know."</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#4527A0;">10</div><div class="rag-line" style="background:#4527A0;"></div></div>
+    <div class="rag-card" style="border-left-color:#4527A0;"><div class="rag-emoji">🤖</div><div><div class="rag-step-label">LLM Generation</div><div class="rag-step-text">Ollama LLM generates natural language answer grounded in retrieved context</div><div class="rag-step-sub">Model reads context, synthesises a clear answer in plain English — does NOT use training knowledge outside context</div></div></div>
+  </div>
+  <div class="rag-step">
+    <div class="rag-left"><div class="rag-num" style="background:#2E7D32;">11</div></div>
+    <div class="rag-card" style="border-left-color:#2E7D32;"><div class="rag-emoji">✅</div><div><div class="rag-step-label">Cited Response Delivered</div><div class="rag-step-text">Answer + source citations (document name, page, passage) returned to Streamlit UI</div><div class="rag-step-sub">Employee sees: answer + "Source: HR Policy Manual, Page 12" — fully auditable and trustworthy</div></div></div>
+  </div>
+</div>
+
+</div><!-- end .content -->
+
+<button class="print-btn" onclick="window.print()">🖨️ Print / Export PDF</button>
+
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>
