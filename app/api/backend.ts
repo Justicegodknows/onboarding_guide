@@ -35,22 +35,34 @@ export async function sendChat(question: string, history: string[] = []) {
 }
 
 export async function sendTrainerChat(question: string, history: string[] = []) {
-    const res = await fetch(`${API_URL}/api/v1/trainer/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, history }),
-    });
-    if (!res.ok) {
-        let detail = '';
-        try {
-            const data = await res.json();
-            detail = data?.detail || data?.message || JSON.stringify(data);
-        } catch {
-            detail = await res.text();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    try {
+        const res = await fetch(`${API_URL}/api/v1/trainer/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, history }),
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            let detail = '';
+            try {
+                const data = await res.json();
+                detail = data?.detail || data?.message || JSON.stringify(data);
+            } catch {
+                detail = await res.text();
+            }
+            throw new Error(`Trainer chat failed (${res.status}): ${detail || 'Unknown error'}`);
         }
-        throw new Error(`Trainer chat failed (${res.status}): ${detail || 'Unknown error'}`);
+        return res.json();
+    } catch (error: any) {
+        if (error?.name === 'AbortError') {
+            throw new Error('Trainer request timed out after 60s. Please try again.');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeout);
     }
-    return res.json();
 }
 
 export async function getDepartments(): Promise<DepartmentInfo[]> {

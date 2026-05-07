@@ -1,9 +1,11 @@
+import asyncio
 import datetime
 import hashlib
 import json
+import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import httpx
 from sqlalchemy import or_
@@ -17,6 +19,9 @@ from app.models.knowledge_base import (
     TrainerSourceSnapshot,
 )
 from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrainerSubAgent:
@@ -640,6 +645,8 @@ class TrainerSubAgent:
         }
 
     def _build_google_drive_source_digest(self, limit_chars_per_source: int = 3000) -> str:
+        max_sources = max(1, settings.TRAINER_SOURCE_DIGEST_MAX_SOURCES)
+        chars_per_source = max(400, settings.TRAINER_SOURCE_DIGEST_MAX_CHARS_PER_SOURCE)
         if not self._db_available:
             rows = [
                 row
@@ -650,10 +657,10 @@ class TrainerSubAgent:
                 return "No Google Drive knowledge snapshots available yet."
 
             lines: List[str] = []
-            for row in rows:
+            for row in rows[:max_sources]:
                 lines.append(f"Source: {row.get('source_url')}")
                 lines.append(f"Fetched: {row.get('fetched_at', 'unknown')}")
-                lines.append(f"Content: {(row.get('content', '') or '')[:limit_chars_per_source]}")
+                lines.append(f"Content: {(row.get('content', '') or '')[:chars_per_source]}")
                 lines.append("---")
             return "\n".join(lines)
 
@@ -663,6 +670,7 @@ class TrainerSubAgent:
                 session.query(TrainerSourceSnapshot)
                 .filter(TrainerSourceSnapshot.source_type == "google_drive")
                 .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .limit(max_sources)
                 .all()
             )
             if not rows:
@@ -672,22 +680,25 @@ class TrainerSubAgent:
             for row in rows:
                 lines.append(f"Source: {row.source_url}")
                 lines.append(f"Fetched: {row.fetched_at.isoformat() if row.fetched_at else 'unknown'}")
-                lines.append(f"Content: {(row.content or '')[:limit_chars_per_source]}")
+                lines.append(f"Content: {(row.content or '')[:chars_per_source]}")
                 lines.append("---")
             return "\n".join(lines)
         finally:
             session.close()
 
     def _build_core_source_digest(self, limit_chars_per_source: int = 3000) -> str:
+        max_sources = max(1, settings.TRAINER_SOURCE_DIGEST_MAX_SOURCES)
+        chars_per_source = max(400, settings.TRAINER_SOURCE_DIGEST_MAX_CHARS_PER_SOURCE)
         if not self._db_available:
             if not self._volatile_source_snapshots:
                 return "No core website snapshots available yet."
 
             lines: List[str] = []
-            for row in self._volatile_source_snapshots.values():
+            rows = list(self._volatile_source_snapshots.values())[:max_sources]
+            for row in rows:
                 lines.append(f"Source: {row.get('source_url')}")
                 lines.append(f"Fetched: {row.get('fetched_at', 'unknown')}")
-                lines.append(f"Content: {(row.get('content', '') or '')[:limit_chars_per_source]}")
+                lines.append(f"Content: {(row.get('content', '') or '')[:chars_per_source]}")
                 lines.append("---")
             return "\n".join(lines)
 
@@ -696,6 +707,7 @@ class TrainerSubAgent:
             rows = (
                 session.query(TrainerSourceSnapshot)
                 .order_by(TrainerSourceSnapshot.fetched_at.desc())
+                .limit(max_sources)
                 .all()
             )
             if not rows:
@@ -705,11 +717,40 @@ class TrainerSubAgent:
             for row in rows:
                 lines.append(f"Source: {row.source_url}")
                 lines.append(f"Fetched: {row.fetched_at.isoformat() if row.fetched_at else 'unknown'}")
-                lines.append(f"Content: {(row.content or '')[:limit_chars_per_source]}")
+                lines.append(f"Content: {(row.content or '')[:chars_per_source]}")
                 lines.append("---")
             return "\n".join(lines)
         finally:
             session.close()
+
+    async def _safe_refresh(
+        self,
+        label: str,
+        enabled: bool,
+        refresh_fn: Callable[[], Awaitable[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        if not enabled:
+            return {"enabled": False, "refreshed": 0, "skipped": 1, "errors": []}
+
+        timeout_seconds = max(1, settings.TRAINER_REFRESH_TIMEOUT_SECONDS)
+        try:
+            return await asyncio.wait_for(refresh_fn(), timeout=timeout_seconds)
+        except asyncio.TimeoutError:
+            logger.warning("Trainer %s refresh timed out after %ss", label, timeout_seconds)
+            return {
+                "enabled": True,
+                "refreshed": 0,
+                "skipped": 0,
+                "errors": [{"source": label, "error": f"refresh timeout after {timeout_seconds}s"}],
+            }
+        except Exception as exc:
+            logger.warning("Trainer %s refresh failed: %s", label, exc)
+            return {
+                "enabled": True,
+                "refreshed": 0,
+                "skipped": 0,
+                "errors": [{"source": label, "error": str(exc)}],
+            }
 
     def _store_response_memory(self, question: str, answer: str, source_digest: str) -> None:
         if not self._db_available:
@@ -910,7 +951,7 @@ class TrainerSubAgent:
             )
 
         second_payload = {
-            "model": settings.OLLAMA_MODEL,
+            "model": settings.LM_STUDIO_MODEL,
             "messages": local_messages,
             "temperature": 1.0,
             "top_p": 0.95,
@@ -918,7 +959,7 @@ class TrainerSubAgent:
         }
         async with httpx.AsyncClient(timeout=75.0) as client:
             second_resp = await client.post(
-                url, json=second_payload, headers=ollama_headers
+                url, json=second_payload, headers=lm_headers
             )
             second_resp.raise_for_status()
             second_data = second_resp.json()
@@ -977,8 +1018,16 @@ class TrainerSubAgent:
         history: Optional[List[str]] = None,
         system_prompt_override: Optional[str] = None,
     ) -> str:
-        drive_refresh = await self._refresh_google_drive_sources()
-        web_refresh = await self._refresh_core_sources()
+        drive_refresh = await self._safe_refresh(
+            "google_drive",
+            settings.TRAINER_AUTO_REFRESH_GOOGLE_DRIVE,
+            self._refresh_google_drive_sources,
+        )
+        web_refresh = await self._safe_refresh(
+            "core_web",
+            settings.TRAINER_AUTO_REFRESH_CORE_WEB,
+            self._refresh_core_sources,
+        )
         source_digest = self._build_google_drive_source_digest()
         if source_digest.startswith("No Google Drive knowledge snapshots"):
             source_digest = self._build_core_source_digest()

@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_CHUNK_SIZE: int = 1200
     GOOGLE_DRIVE_MAX_FILES: int = 200
 
+    # Trainer chat safeguards to prevent long-running source refresh from blocking responses.
+    TRAINER_AUTO_REFRESH_GOOGLE_DRIVE: bool = False
+    TRAINER_AUTO_REFRESH_CORE_WEB: bool = False
+    TRAINER_REFRESH_TIMEOUT_SECONDS: int = 8
+    TRAINER_SOURCE_DIGEST_MAX_SOURCES: int = 6
+    TRAINER_SOURCE_DIGEST_MAX_CHARS_PER_SOURCE: int = 1200
+
     # YouTube-backed knowledge ingestion source
     YOUTUBE_CHANNEL: str = ""
     YOUTUBE_MAX_VIDEOS: int = 25
