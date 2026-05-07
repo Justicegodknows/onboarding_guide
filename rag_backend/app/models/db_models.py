@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from ..db import Base
 
 class User(Base):
@@ -52,3 +53,24 @@ class Escalation(Base):
     created_at = Column(Date)
     resolved_at = Column(Date, nullable=True)
     ticket = Column(Text)
+
+
+class Integration(Base):
+    """Stores user-configured external integrations (email, Jira, calendar, Slack, etc.)."""
+    __tablename__ = "integrations"
+    id = Column(Integer, primary_key=True, index=True)
+    # Owner of the integration — NULL means org-wide (admin-managed)
+    owner_email = Column(String, nullable=True, index=True)
+    # One of: email | jira | google_calendar | slack | microsoft_teams | github | notion | custom
+    integration_type = Column(String, nullable=False)
+    # Human-readable label set by the user
+    name = Column(String, nullable=False)
+    # JSON blob with provider-specific config (API keys, OAuth tokens, server URLs, etc.)
+    # In a production system this should be encrypted at rest via a KMS key
+    config = Column(Text, nullable=False, default="{}")
+    # active | inactive | error
+    status = Column(String, nullable=False, default="inactive")
+    is_org_wide = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+

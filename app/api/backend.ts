@@ -165,3 +165,169 @@ export async function loginEmployee(email: string, password: string) {
 
     return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Document ingestion
+// ---------------------------------------------------------------------------
+
+export interface UploadedDocument {
+    id: number;
+    filename: string;
+    uploaded_by: number | null;
+    uploaded_at: string | null;
+    metadata: string | null;
+}
+
+export interface UploadResult {
+    document_id: string;
+    db_id: number;
+    filename: string;
+    size_bytes: number;
+    ingest_status: string;
+    chunks_added: number;
+}
+
+export async function uploadDocument(file: File, token: string): Promise<UploadResult> {
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await fetch(`${API_URL}/api/v1/documents/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+    });
+
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Upload failed (${res.status})`);
+    }
+    return res.json();
+}
+
+export async function listDocuments(token: string): Promise<UploadedDocument[]> {
+    const res = await fetch(`${API_URL}/api/v1/documents/`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Failed to load documents (${res.status})`);
+    return res.json();
+}
+
+export async function deleteDocument(docId: number, token: string): Promise<void> {
+    const res = await fetch(`${API_URL}/api/v1/documents/${docId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Delete failed (${res.status})`);
+    }
+}
+
+export async function reingestDocument(docId: number, token: string): Promise<unknown> {
+    const res = await fetch(`${API_URL}/api/v1/documents/${docId}/reingest`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Re-ingest failed (${res.status})`);
+    }
+    return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Integrations
+// ---------------------------------------------------------------------------
+
+export type IntegrationType =
+    | "email"
+    | "jira"
+    | "google_calendar"
+    | "slack"
+    | "microsoft_teams"
+    | "github"
+    | "notion"
+    | "custom";
+
+export interface Integration {
+    id: number;
+    owner_email: string | null;
+    integration_type: IntegrationType;
+    name: string;
+    status: "active" | "inactive" | "error";
+    is_org_wide: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateIntegrationPayload {
+    integration_type: IntegrationType;
+    name: string;
+    config: Record<string, unknown>;
+    is_org_wide?: boolean;
+}
+
+export async function listIntegrations(token: string): Promise<Integration[]> {
+    const res = await fetch(`${API_URL}/api/v1/integrations/`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Failed to load integrations (${res.status})`);
+    return res.json();
+}
+
+export async function createIntegration(
+    payload: CreateIntegrationPayload,
+    token: string,
+): Promise<Integration> {
+    const res = await fetch(`${API_URL}/api/v1/integrations/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Create integration failed (${res.status})`);
+    }
+    return res.json();
+}
+
+export async function updateIntegration(
+    id: number,
+    payload: Partial<{ name: string; config: Record<string, unknown>; status: "active" | "inactive"; is_org_wide: boolean }>,
+    token: string,
+): Promise<Integration> {
+    const res = await fetch(`${API_URL}/api/v1/integrations/${id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Update integration failed (${res.status})`);
+    }
+    return res.json();
+}
+
+export async function deleteIntegration(id: number, token: string): Promise<void> {
+    const res = await fetch(`${API_URL}/api/v1/integrations/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Delete integration failed (${res.status})`);
+    }
+}
+
+export async function testIntegration(id: number, token: string): Promise<{ success: boolean; message: string; status: string }> {
+    const res = await fetch(`${API_URL}/api/v1/integrations/${id}/test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Test integration failed (${res.status})`);
+    }
+    return res.json();
+}
+

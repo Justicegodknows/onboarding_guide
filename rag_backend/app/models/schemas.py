@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
+from datetime import datetime
 
 class ChatRequest(BaseModel):
     question: str
@@ -41,3 +42,49 @@ class DepartmentInfo(BaseModel):
 class DepartmentChatRequest(BaseModel):
     question: str
     history: Optional[List[str]] = None
+
+
+# ---------------------------------------------------------------------------
+# Integration schemas
+# ---------------------------------------------------------------------------
+
+IntegrationType = Literal[
+    "email",
+    "jira",
+    "google_calendar",
+    "slack",
+    "microsoft_teams",
+    "github",
+    "notion",
+    "custom",
+]
+
+
+class IntegrationCreate(BaseModel):
+    integration_type: IntegrationType
+    name: str
+    config: Dict[str, Any] = {}
+    is_org_wide: bool = False
+
+
+class IntegrationUpdate(BaseModel):
+    name: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    status: Optional[Literal["active", "inactive"]] = None
+    is_org_wide: Optional[bool] = None
+
+
+class IntegrationOut(BaseModel):
+    id: int
+    owner_email: Optional[str]
+    integration_type: str
+    name: str
+    status: str
+    is_org_wide: bool
+    created_at: datetime
+    updated_at: datetime
+    # config is intentionally omitted from response to avoid leaking secrets
+
+    class Config:
+        from_attributes = True
+

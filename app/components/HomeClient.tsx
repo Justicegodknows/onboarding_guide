@@ -70,6 +70,18 @@ export default function HomeClient({ departments }: HomeClientProps) {
                                 {isChatOpen ? "Hide Assistant" : "Open Assistant"}
                             </button>
                             <Link
+                                href="/documents"
+                                className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
+                            >
+                                Upload Docs
+                            </Link>
+                            <Link
+                                href="/integrations"
+                                className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
+                            >
+                                Integrations
+                            </Link>
+                            <Link
                                 href="/docs"
                                 className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
                             >
@@ -194,6 +206,31 @@ export default function HomeClient({ departments }: HomeClientProps) {
                             Dedicated spaces provide focused prompts and assistant behavior per business unit.
                         </p>
                     </div>
+                </section>
+
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                    <Link
+                        href="/documents"
+                        className="group flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-7 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    >
+                        <div className="text-3xl">📂</div>
+                        <h3 className="text-xl font-bold text-black group-hover:text-accent transition-colors">Document Ingestion</h3>
+                        <p className="text-sm text-zinc-500 leading-relaxed">
+                            Upload PDFs, Word documents, Markdown files, and CSVs. Each document is automatically chunked, embedded, and stored in the knowledge base for instant retrieval.
+                        </p>
+                        <span className="text-xs font-semibold text-accent mt-auto">Open Upload Panel →</span>
+                    </Link>
+                    <Link
+                        href="/integrations"
+                        className="group flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-7 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+                    >
+                        <div className="text-3xl">🔌</div>
+                        <h3 className="text-xl font-bold text-black group-hover:text-accent transition-colors">Integrations</h3>
+                        <p className="text-sm text-zinc-500 leading-relaxed">
+                            Connect email (SMTP), Jira, Google Calendar, Slack, Microsoft Teams, GitHub, and Notion to enrich the knowledge base and enable automated workflows.
+                        </p>
+                        <span className="text-xs font-semibold text-accent mt-auto">Manage Integrations →</span>
+                    </Link>
                 </section>
             </div>
         </div>

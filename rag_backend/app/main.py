@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments
+from app.routers.integrations import router as integrations_router
 
 
 app = FastAPI()
@@ -30,3 +31,4 @@ app.include_router(onboarding.router)
 app.include_router(ingest.router)
 app.include_router(trainer.router)
 app.include_router(departments.router)
+app.include_router(integrations_router)
