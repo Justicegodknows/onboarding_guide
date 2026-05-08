@@ -147,9 +147,18 @@ export async function registerEmployee(payload: RegisterPayload) {
     return res.json();
 }
 
-export async function loginEmployee(email: string, password: string) {
+export interface LoginResult {
+    access_token: string;
+    token_type: string;
+    username: string;
+    role: string;
+    dept: string;
+    display_name: string;
+}
+
+export async function loginUser(username: string, password: string): Promise<LoginResult> {
     const form = new URLSearchParams();
-    form.append("username", email);
+    form.append("username", username);
     form.append("password", password);
 
     const res = await fetch(`${API_URL}/auth/token`, {
@@ -160,10 +169,23 @@ export async function loginEmployee(email: string, password: string) {
 
     if (!res.ok) {
         const details = await res.json().catch(() => ({}));
-        throw new Error(details?.detail || "Login failed");
+        throw new Error(details?.detail || "Incorrect username or password");
     }
 
     return res.json();
+}
+
+/** @deprecated Use loginUser instead */
+export async function loginEmployee(email: string, password: string) {
+    return loginUser(email, password);
+}
+
+export async function getMe(token: string) {
+    const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Session expired");
+    return res.json() as Promise<{ id: string; role: string; dept: string; display_name: string }>;
 }
 
 // ---------------------------------------------------------------------------

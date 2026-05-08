@@ -7,6 +7,7 @@ import httpx
 from app.services.rag_service import RAGService
 from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 from app.services.youtube_knowledge import YouTubeKnowledgeService
+from app.services.local_folder_knowledge import LocalFolderKnowledgeService
 
 HELP_DIR = os.path.join(os.path.dirname(__file__), '../../help')
 CHUNKS_PATH = os.path.join(HELP_DIR, 'chunks.json')
@@ -17,6 +18,18 @@ def _load_local_chunks() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     with open(CHUNKS_PATH, 'r') as f:
         chunks = json.load(f)
     return chunks, {"source": "local", "chunk_count": len(chunks)}
+
+
+def _load_local_folder_chunks(folder_path: str | None = None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    service = LocalFolderKnowledgeService(folder_path=folder_path)
+    if not service.configured:
+        raise RuntimeError(
+            f"Local folder source is not configured or the directory does not exist: "
+            f"{service.folder_path}. Set EUZ_DOCS_FOLDER in rag_backend/.env or pass "
+            "folder_path explicitly."
+        )
+    chunks, stats = service.fetch_chunks()
+    return chunks, {"source": "local_folder", **stats}
 
 
 def _load_google_drive_chunks() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -45,12 +58,15 @@ def ingest_chunks(
     source: str = "google_drive",
     allow_local_fallback: bool = True,
     youtube_channel: str | None = None,
+    folder_path: str | None = None,
 ):
     rag = RAGService()
 
     ingest_source = (source or "").strip().lower()
-    if ingest_source not in {"google_drive", "youtube", "local"}:
-        raise ValueError("source must be either 'google_drive', 'youtube', or 'local'.")
+    if ingest_source not in {"google_drive", "youtube", "local", "local_folder"}:
+        raise ValueError(
+            "source must be one of: 'google_drive', 'youtube', 'local', 'local_folder'."
+        )
 
     meta: Dict[str, Any] = {}
     if ingest_source == "google_drive":
@@ -69,6 +85,8 @@ def ingest_chunks(
                 raise
             chunks, meta = _load_local_chunks()
             meta["fallback_reason"] = str(exc)
+    elif ingest_source == "local_folder":
+        chunks, meta = _load_local_folder_chunks(folder_path)
     else:
         chunks, meta = _load_local_chunks()
 

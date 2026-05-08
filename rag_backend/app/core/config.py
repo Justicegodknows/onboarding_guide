@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     YOUTUBE_MAX_VIDEOS: int = 25
     YOUTUBE_CHUNK_SIZE: int = 1200
 
+    # Local folder ingestion (DGX Spark / on-premise document store)
+    # Set to the absolute path of the folder containing your EUZ Project documents,
+    # e.g. EUZ_DOCS_FOLDER=/mnt/dgx/euz_project/docs
+    # The service supports PDF, DOCX, XLSX, XLS, and TXT files recursively.
+    EUZ_DOCS_FOLDER: str = ""
+
     model_config = SettingsConfigDict(env_file=str(ENV_FILE), extra="ignore")
 
 settings = Settings()

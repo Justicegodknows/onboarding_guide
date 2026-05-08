@@ -5,6 +5,9 @@ from datetime import datetime
 class ChatRequest(BaseModel):
     question: str
     history: Optional[List[str]] = None
+    simple_mode: bool = False
+    """When True, use the lightweight prompt (system + question only).
+    Defaults to False (full CoT + few-shot prompt)."""
 
 class ChatResponse(BaseModel):
     answer: str

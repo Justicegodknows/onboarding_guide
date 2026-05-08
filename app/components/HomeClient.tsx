@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { DepartmentInfo } from "../api/backend";
 import ChatBox from "./ChatBox";
@@ -10,9 +11,39 @@ interface HomeClientProps {
     departments: DepartmentInfo[];
 }
 
+interface AuthState {
+    token: string;
+    username: string;
+    displayName: string;
+    role: string;
+    dept: string;
+}
+
 export default function HomeClient({ departments }: HomeClientProps) {
+    const router = useRouter();
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeOnboardingStep, setActiveOnboardingStep] = useState(0);
+    const [auth, setAuth] = useState<AuthState | null>(null);
+
+    useEffect(() => {
+        const token = localStorage.getItem("vaultmind_token");
+        if (token) {
+            setAuth({
+                token,
+                username: localStorage.getItem("vaultmind_user") ?? "",
+                displayName: localStorage.getItem("vaultmind_display_name") ?? localStorage.getItem("vaultmind_user") ?? "",
+                role: localStorage.getItem("vaultmind_role") ?? "USER",
+                dept: localStorage.getItem("vaultmind_dept") ?? "",
+            });
+        }
+    }, []);
+
+    function handleLogout() {
+        ["vaultmind_token", "vaultmind_role", "vaultmind_user", "vaultmind_display_name", "vaultmind_dept"]
+            .forEach((k) => localStorage.removeItem(k));
+        setAuth(null);
+        setIsChatOpen(false);
+    }
 
     const onboardingSteps = [
         {
@@ -62,6 +93,27 @@ export default function HomeClient({ departments }: HomeClientProps) {
                             Private, local-first AI assistant for internal company knowledge. Explore departmental workspaces,
                             onboard faster, and chat with grounded responses from your document base.
                         </p>
+                        {/* Auth badge */}
+                        {auth ? (
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 shadow-sm">
+                                    <span className="h-6 w-6 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold select-none">
+                                        {auth.displayName.charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="text-sm font-semibold text-zinc-800">{auth.displayName}</span>
+                                    {auth.role === "ADMIN" && (
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-700 bg-cyan-100 px-2 py-0.5 rounded-full">Admin</span>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="text-xs font-semibold text-zinc-500 hover:text-red-500 transition-colors underline underline-offset-2"
+                                >
+                                    Sign out
+                                </button>
+                            </div>
+                        ) : null}
+
                         <div className="flex flex-wrap gap-4 mt-6">
                             <button
                                 onClick={() => setIsChatOpen((prev) => !prev)}
@@ -87,6 +139,14 @@ export default function HomeClient({ departments }: HomeClientProps) {
                             >
                                 User Guide
                             </Link>
+                            {!auth ? (
+                                <Link
+                                    href="/login"
+                                    className="px-8 py-3 bg-cyan-500 text-white rounded-full font-bold hover:bg-cyan-600 hover:-translate-y-0.5 transition-all shadow-xl"
+                                >
+                                    Sign In
+                                </Link>
+                            ) : null}
                         </div>
                     </div>
 

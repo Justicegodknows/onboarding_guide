@@ -8,18 +8,27 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 # Mock user database for demo purposes
 # In production, these would be in a proper database
 USERS_DB = {
+    "EUZadmin": {
+        "username": "EUZadmin",
+        "password": get_password_hash("admin"),
+        "role": "ADMIN",
+        "dept": "Administration",
+        "display_name": "EUZ Administrator",
+    },
     "admin@vaultmind.local": {
         "username": "admin@vaultmind.local",
         "password": get_password_hash("admin123"),
         "role": "ADMIN",
-        "dept": "IT"
+        "dept": "IT",
+        "display_name": "VaultMind Admin",
     },
     "user@vaultmind.local": {
         "username": "user@vaultmind.local",
         "password": get_password_hash("user123"),
         "role": "USER",
-        "dept": "Finance"
-    }
+        "dept": "Finance",
+        "display_name": "Finance User",
+    },
 }
 
 class RegisterRequest(BaseModel):
@@ -39,9 +48,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
 
     access_token = create_access_token(
-        data={"sub": user["username"], "role": user["role"], "dept": user["dept"]}
+        data={
+            "sub": user["username"],
+            "role": user["role"],
+            "dept": user["dept"],
+            "display_name": user.get("display_name", user["username"]),
+        }
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "username": user["username"],
+        "role": user["role"],
+        "dept": user["dept"],
+        "display_name": user.get("display_name", user["username"]),
+    }
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_employee(payload: RegisterRequest):
