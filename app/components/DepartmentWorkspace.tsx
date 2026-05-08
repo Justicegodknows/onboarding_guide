@@ -11,6 +11,10 @@ interface DepartmentWorkspaceProps {
     info: string;
 }
 
+function getToken(): string | undefined {
+    return typeof window !== 'undefined' ? localStorage.getItem('vaultmind_token') ?? undefined : undefined;
+}
+
 export default function DepartmentWorkspace({ id, name, description, info }: DepartmentWorkspaceProps) {
     return (
         <div className="w-full max-w-4xl flex flex-col gap-6 mx-auto">
@@ -26,13 +30,13 @@ export default function DepartmentWorkspace({ id, name, description, info }: Dep
 
             <ChatBox
                 title={`${name} - Main Chat Agent`}
-                onSend={(question, history) => sendDepartmentChat(id, question, history)}
+                onSend={(question, history) => sendDepartmentChat(id, question, history, getToken())}
             />
 
             <div className="w-full max-w-lg mx-auto mt-2 p-4 border rounded bg-white dark:bg-zinc-900">
                 <TrainerChatBox
                     title={`${name} - Trainer Sub-Agent`}
-                    onSend={(question, history) => sendDepartmentTrainerChat(id, question, history)}
+                    onSend={(question, history) => sendDepartmentTrainerChat(id, question, history, getToken())}
                 />
             </div>
         </div>

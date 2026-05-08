@@ -15,10 +15,13 @@ export async function healthCheck() {
     return res.json();
 }
 
-export async function sendChat(question: string, history: string[] = []) {
+export async function sendChat(question: string, history: string[] = [], token?: string) {
     const res = await fetch(`${API_URL}/api/v1/chat/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ question, history }),
     });
     if (!res.ok) {
@@ -34,13 +37,16 @@ export async function sendChat(question: string, history: string[] = []) {
     return res.json();
 }
 
-export async function sendTrainerChat(question: string, history: string[] = []) {
+export async function sendTrainerChat(question: string, history: string[] = [], token?: string) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
     try {
         const res = await fetch(`${API_URL}/api/v1/trainer/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
             body: JSON.stringify({ question, history }),
             signal: controller.signal,
         });
@@ -80,11 +86,15 @@ export async function getDepartment(departmentId: string): Promise<DepartmentInf
 export async function sendDepartmentChat(
     departmentId: string,
     question: string,
-    history: string[] = []
+    history: string[] = [],
+    token?: string,
 ) {
     const res = await fetch(`${API_URL}/api/v1/departments/${departmentId}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ question, history }),
     });
     if (!res.ok) {
@@ -103,11 +113,15 @@ export async function sendDepartmentChat(
 export async function sendDepartmentTrainerChat(
     departmentId: string,
     question: string,
-    history: string[] = []
+    history: string[] = [],
+    token?: string,
 ) {
     const res = await fetch(`${API_URL}/api/v1/departments/${departmentId}/trainer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ question, history }),
     });
     if (!res.ok) {

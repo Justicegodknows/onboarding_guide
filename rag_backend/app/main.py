@@ -1,12 +1,23 @@
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.db import Base, engine
+from app.models import db_models  # noqa: F401 — import side-effects register all ORM models
 from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments
 from app.routers.integrations import router as integrations_router
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create all DB tables on startup (idempotent — safe to call multiple times)
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS setup for frontend integration
 app.add_middleware(

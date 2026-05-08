@@ -35,8 +35,10 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
         setMessages((prev) => [...prev, { role: "user", text: question }]);
         setLoading(true);
         try {
-            const sender = onSend ?? sendTrainerChat;
-            const res = await sender(question, history);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('vaultmind_token') ?? undefined : undefined;
+            const res = await (onSend
+                ? onSend(question, history)
+                : sendTrainerChat(question, history, token));
             const answer: string = res.answer;
             setMessages((prev) => [...prev, { role: "trainer", text: answer }]);
             setHistory((prev) => [...prev, question]);

@@ -39,9 +39,11 @@ export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
 
         try {
             const deptQuestion = department ? `[${department}] ${currentQuestion}` : currentQuestion;
-            const sender = onSend ?? sendChat;
             const questionToSend = onSend ? currentQuestion : deptQuestion;
-            const res = await sender(questionToSend, history);
+            const token = typeof window !== 'undefined' ? localStorage.getItem('vaultmind_token') ?? undefined : undefined;
+            const res = await (onSend
+                ? onSend(questionToSend, history)
+                : sendChat(questionToSend, history, token));
             setMessages((prev) => [...prev, { role: "assistant", content: res.answer, sources: res.sources }]);
             setHistory((prev) => [...prev, questionToSend]);
         } catch (e: any) {
