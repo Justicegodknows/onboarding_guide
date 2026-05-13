@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "backend:up": "cd rag_backend && docker-compose up -d",
+    "backend:down": "cd rag_backend && docker-compose down",
+    "ollama:pull": "ollama pull llama3 && ollama pull nomic-embed-text",
+    "setup": "npm install && npm run backend:up && npm run ollama:pull"
   },
   "jest": {
     "testEnvironment": "jsdom",
