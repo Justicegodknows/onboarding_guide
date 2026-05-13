@@ -20,8 +20,8 @@ GROUNDING RULES (NON-NEGOTIABLE)
 ────────────────────────────────────────
 CITATIONS
 ────────────────────────────────────────
-- After every factual statement, cite the source in square brackets using the file name and page/section from metadata, e.g. [Employee\_Handbook.pdf, p.12].
-- Multiple sources for one claim → list each: [Doc\_A.pdf, p.3][Doc\_B.docx, §2.1].
+- After every factual statement, cite the source in square brackets using the file name and page/section from metadata, e.g. [Employee\\_Handbook.pdf, p.12].
+- Multiple sources for one claim → list each: [Doc\\_A.pdf, p.3][Doc\\_B.docx, §2.1].
 - End the response with a "Sources" list of all cited documents.
 
 ────────────────────────────────────────
