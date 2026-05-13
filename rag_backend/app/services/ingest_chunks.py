@@ -9,7 +9,7 @@ from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
 from app.services.youtube_knowledge import YouTubeKnowledgeService
 from app.services.local_folder_knowledge import LocalFolderKnowledgeService
 
-HELP_DIR = os.path.join(os.path.dirname(__file__), '../../help')
+HELP_DIR = os.path.join(os.path.dirname(__file__), '../../../help')
 CHUNKS_PATH = os.path.join(HELP_DIR, 'chunks.json')
 
 

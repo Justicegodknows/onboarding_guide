@@ -27,10 +27,8 @@ CITATIONS
 ────────────────────────────────────────
 ACCESS CONTROL
 ────────────────────────────────────────
-- Only use CONTEXT chunks whose metadata.department matches "{user_department}" OR is tagged "all".
-- If the user asks about something outside their access scope, reply:
-   "This information is restricted. Please contact your administrator if you need access."
-- Never reveal the existence of restricted documents.
+- Use all provided CONTEXT chunks as your only source of truth.
+- Do not invent access restrictions that are not explicitly stated in CONTEXT.
 
 ────────────────────────────────────────
 ANSWER STYLE

@@ -27,7 +27,7 @@ def format_chunks_with_metadata(docs: List[Document]) -> str:
     The assembled string is injected into the {context} slot of the prompt.
     """
     if not docs:
-        return "(no relevant chunks returned for this user's access scope)"
+        return "(no relevant chunks were retrieved from the vector knowledge base)"
 
     pieces: List[str] = []
     for doc in docs:
@@ -45,6 +45,21 @@ def format_chunks_with_metadata(docs: List[Document]) -> str:
         pieces.append(f"[{citation}]\n{doc.page_content}")
 
     return "\n\n".join(pieces)
+
+
+async def retrieve_context(question: str, top_k: int = 6) -> str:
+    """Retrieve relevant Chroma chunks and return formatted context.
+
+    Retrieval is intentionally unfiltered so all indexed knowledge remains
+    available to all assistant entry points.
+    """
+    rag = RAGService()
+    retriever = rag.vector_store.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": max(1, top_k)},
+    )
+    docs = await retriever.ainvoke(question)
+    return format_chunks_with_metadata(docs)
 
 
 def _build_llm() -> ChatOpenAI:
@@ -83,8 +98,8 @@ def build_rag_chain(
 
     Args:
         current_user: dict from get_current_user — keys: id, role, dept, display_name.
-        retriever: optional LangChain retriever; defaults to ChromaDB similarity
-                   retriever filtered to the user's department (top-4 chunks).
+        retriever: optional LangChain retriever; defaults to unfiltered ChromaDB
+                   similarity retriever (top-6 chunks).
         prompt: optional ChatPromptTemplate to use instead of the default.
                 Pass ``build_simple_prompt()`` for a lightweight chain without
                 CoT / few-shot examples, or ``build_vaultmind_prompt()`` (default)
@@ -106,13 +121,9 @@ def build_rag_chain(
     """
     if retriever is None:
         rag = RAGService()
-        dept = current_user.get("dept")
         retriever = rag.vector_store.as_retriever(
             search_type="similarity",
-            search_kwargs={
-                "k": 4,
-                **({"filter": {"department": dept}} if dept else {}),
-            },
+            search_kwargs={"k": 6},
         )
 
     resolved_prompt = prompt if prompt is not None else build_vaultmind_prompt()

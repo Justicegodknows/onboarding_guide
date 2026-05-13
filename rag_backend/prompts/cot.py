@@ -12,10 +12,9 @@ STEP 1 — UNDERSTAND
 - Identify the question type: [factual | procedural | comparative | opinion | restricted | ambiguous].
 - Note the user's department ("{user_department}") and role ("{user_role}").
 
-STEP 2 — ACCESS CHECK
-- For each retrieved chunk, check metadata.department.
-- Discard chunks not tagged "all" or matching the user's department.
-- If ZERO chunks remain after filtering → answer = "restricted" refusal. Stop.
+STEP 2 — CONTEXT CHECK
+- Review all retrieved chunks as potentially usable evidence.
+- If ZERO chunks are available or none contain relevant facts → answer = "not found" refusal. Stop.
 
 STEP 3 — RELEVANCE CHECK
 - For each remaining chunk, mark it as: [directly answers | partially answers | irrelevant].

@@ -1,4 +1,5 @@
 import importlib
+import csv
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -99,6 +100,36 @@ class RAGService:
     def chunk(self, text: str) -> List[str]:
         return self._splitter.split_text(text)
 
+    def _extract_text_from_file(self, file_path: str) -> str:
+        lower = file_path.lower()
+        if lower.endswith(".pdf"):
+            text = ""
+            with self._fitz.open(file_path) as doc:
+                for page in doc:
+                    text += page.get_text()
+            return text
+
+        if lower.endswith(".docx"):
+            docx_mod = importlib.import_module("docx")
+            parsed = docx_mod.Document(file_path)
+            return "\n".join(p.text for p in parsed.paragraphs if p.text.strip())
+
+        if lower.endswith((".txt", ".md")):
+            with open(file_path, "r", encoding="utf-8", errors="replace") as handle:
+                return handle.read()
+
+        if lower.endswith(".csv"):
+            rows: List[str] = []
+            with open(file_path, "r", encoding="utf-8", errors="replace", newline="") as handle:
+                reader = csv.reader(handle)
+                for row in reader:
+                    line = " | ".join(cell.strip() for cell in row if str(cell).strip())
+                    if line:
+                        rows.append(line)
+            return "\n".join(rows)
+
+        raise ValueError(f"Unsupported file type for ingestion: {file_path}")
+
     def ingest(self, document: Any, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         if isinstance(document, dict):
             content = str(document.get("text") or document.get("content") or "").strip()
@@ -106,22 +137,25 @@ class RAGService:
                 return {"status": "skipped", "chunks_added": 0}
             doc_metadata = {**(metadata or {}), **{k: v for k, v in document.items() if k not in {"text", "content"}}}
             docs = [self._Document(page_content=content, metadata=doc_metadata)]
-            self.vector_store.add_documents(docs)
+            doc_id = str(doc_metadata.get("chunk_id") or "")
+            ids = [doc_id] if doc_id else None
+            self.vector_store.add_documents(docs, ids=ids)
             return {"status": "success", "chunks_added": 1}
 
         file_path = str(document)
-        text = ""
-        with self._fitz.open(file_path) as doc:
-            for page in doc:
-                text += page.get_text()
+        text = self._extract_text_from_file(file_path)
 
         chunks = self.chunk(text)
         documents = []
-        for chunk_text in chunks:
-            doc_metadata = {**(metadata or {}), "source": file_path}
+        ids: List[str] = []
+        for idx, chunk_text in enumerate(chunks):
+            base_metadata = metadata or {}
+            doc_metadata = {**base_metadata, "source": base_metadata.get("source", file_path)}
             documents.append(self._Document(page_content=chunk_text, metadata=doc_metadata))
+            doc_id = str(base_metadata.get("doc_id") or "")
+            ids.append(f"{doc_id}:{idx}" if doc_id else f"{file_path}:{idx}")
 
-        self.vector_store.add_documents(documents)
+        self.vector_store.add_documents(documents, ids=ids)
         return {"status": "success", "chunks_added": len(documents)}
 
     def retrieve(
