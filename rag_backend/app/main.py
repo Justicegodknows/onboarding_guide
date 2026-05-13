@@ -4,16 +4,55 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import Base, engine
+from app.db import Base, SessionLocal, engine
 from app.models import db_models  # noqa: F401 — import side-effects register all ORM models
+from app.models.db_models import AuthUser
 from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments
 from app.routers.integrations import router as integrations_router
+from app.core.security import get_password_hash
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create all DB tables on startup (idempotent — safe to call multiple times)
     Base.metadata.create_all(bind=engine)
+
+    # Seed an initial admin account when the auth store is empty.
+    db = SessionLocal()
+    try:
+        existing_admin = db.query(AuthUser).first()
+        if not existing_admin:
+            db.add(
+                AuthUser(
+                    email="euzadmin",
+                    password_hash=get_password_hash("admin"),
+                    role="ADMIN",
+                    dept="Administration",
+                    display_name="EUZ Administrator",
+                )
+            )
+            db.add(
+                AuthUser(
+                    email="admin@vaultmind.local",
+                    password_hash=get_password_hash("admin123"),
+                    role="ADMIN",
+                    dept="IT",
+                    display_name="VaultMind Admin",
+                )
+            )
+            db.add(
+                AuthUser(
+                    email="user@vaultmind.local",
+                    password_hash=get_password_hash("user123"),
+                    role="USER",
+                    dept="Finance",
+                    display_name="Finance User",
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
+
     yield
 
 

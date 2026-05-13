@@ -144,6 +144,7 @@ export interface RegisterPayload {
     password: string;
     role: EmployeeRole;
     dept: string;
+    display_name?: string;
 }
 
 export async function registerEmployee(payload: RegisterPayload) {

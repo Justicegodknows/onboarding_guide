@@ -140,12 +140,20 @@ export default function HomeClient({ departments }: HomeClientProps) {
                                 User Guide
                             </Link>
                             {!auth ? (
-                                <Link
-                                    href="/login"
-                                    className="px-8 py-3 bg-cyan-500 text-white rounded-full font-bold hover:bg-cyan-600 hover:-translate-y-0.5 transition-all shadow-xl"
-                                >
-                                    Sign In
-                                </Link>
+                                <>
+                                    <Link
+                                        href="/login"
+                                        className="px-8 py-3 bg-cyan-500 text-white rounded-full font-bold hover:bg-cyan-600 hover:-translate-y-0.5 transition-all shadow-xl"
+                                    >
+                                        Sign In
+                                    </Link>
+                                    <Link
+                                        href="/register"
+                                        className="px-8 py-3 bg-white text-black border border-zinc-300 rounded-full font-bold hover:bg-zinc-100 hover:-translate-y-0.5 transition-all shadow-xl"
+                                    >
+                                        Register
+                                    </Link>
+                                </>
                             ) : null}
                         </div>
                     </div>

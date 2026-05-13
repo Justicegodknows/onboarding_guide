@@ -12,6 +12,16 @@ class User(Base):
     start_date = Column(Date)
     onboarding_progress = relationship("OnboardingProgress", back_populates="user")
 
+class AuthUser(Base):
+    __tablename__ = "auth_users"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="USER")
+    dept = Column(String, nullable=False, default="General")
+    display_name = Column(String, nullable=False, default="")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
 class OnboardingProgress(Base):
     __tablename__ = "onboarding_progress"
     id = Column(Integer, primary_key=True, index=True)

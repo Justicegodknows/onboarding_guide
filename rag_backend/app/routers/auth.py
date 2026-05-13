@@ -1,46 +1,37 @@
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+
 from app.core.security import create_access_token, get_password_hash, verify_password, get_current_user
+from app.db import SessionLocal
+from app.models.db_models import AuthUser
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# Mock user database for demo purposes
-# In production, these would be in a proper database
-USERS_DB = {
-    "EUZadmin": {
-        "username": "EUZadmin",
-        "password": get_password_hash("admin"),
-        "role": "ADMIN",
-        "dept": "Administration",
-        "display_name": "EUZ Administrator",
-    },
-    "admin@vaultmind.local": {
-        "username": "admin@vaultmind.local",
-        "password": get_password_hash("admin123"),
-        "role": "ADMIN",
-        "dept": "IT",
-        "display_name": "VaultMind Admin",
-    },
-    "user@vaultmind.local": {
-        "username": "user@vaultmind.local",
-        "password": get_password_hash("user123"),
-        "role": "USER",
-        "dept": "Finance",
-        "display_name": "Finance User",
-    },
-}
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 class RegisterRequest(BaseModel):
     email: str
     password: str = Field(min_length=8)
-    role: str = Field(default="USER")
     dept: str = Field(default="General")
+    display_name: str = Field(default="")
+
 
 @router.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = USERS_DB.get(form_data.username)
-    if not user or not verify_password(form_data.password, user["password"]):
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    user = db.query(AuthUser).filter(AuthUser.email == form_data.username.lower().strip()).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -49,23 +40,24 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     access_token = create_access_token(
         data={
-            "sub": user["username"],
-            "role": user["role"],
-            "dept": user["dept"],
-            "display_name": user.get("display_name", user["username"]),
+            "sub": user.email,
+            "role": user.role,
+            "dept": user.dept,
+            "display_name": user.display_name or user.email,
         }
     )
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "username": user["username"],
-        "role": user["role"],
-        "dept": user["dept"],
-        "display_name": user.get("display_name", user["username"]),
+        "username": user.email,
+        "role": user.role,
+        "dept": user.dept,
+        "display_name": user.display_name or user.email,
     }
 
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register_employee(payload: RegisterRequest):
+def register_employee(payload: RegisterRequest, db: Session = Depends(get_db)):
     normalized_email = payload.email.lower().strip()
 
     if "@" not in normalized_email:
@@ -74,35 +66,35 @@ async def register_employee(payload: RegisterRequest):
             detail="A valid email is required",
         )
 
-    if normalized_email in USERS_DB:
+    existing = db.query(AuthUser).filter(AuthUser.email == normalized_email).first()
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="User already exists",
         )
 
-    normalized_role = payload.role.upper()
-    if normalized_role not in {"USER", "ADMIN"}:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Role must be USER or ADMIN",
-        )
-
-    USERS_DB[normalized_email] = {
-        "username": normalized_email,
-        "password": get_password_hash(payload.password),
-        "role": normalized_role,
-        "dept": payload.dept,
-    }
+    user = AuthUser(
+        email=normalized_email,
+        password_hash=get_password_hash(payload.password),
+        role="USER",
+        dept=payload.dept,
+        display_name=payload.display_name or normalized_email,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
     return {
         "message": "Employee account created",
         "user": {
-            "username": normalized_email,
-            "role": normalized_role,
-            "dept": payload.dept,
+            "username": user.email,
+            "role": user.role,
+            "dept": user.dept,
+            "display_name": user.display_name,
         },
     }
 
+
 @router.get("/me")
-async def read_users_me(current_user = Depends(get_current_user)):
+async def read_users_me(current_user=Depends(get_current_user)):
     return current_user
