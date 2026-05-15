@@ -1,4 +1,10 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+    throw new Error(
+        'NEXT_PUBLIC_API_URL is not set. Please set it in your .env file to the public backend URL (e.g., your dev tunnel backend URL). Remote users cannot access localhost.'
+    );
+}
 
 export interface DepartmentInfo {
     id: string;

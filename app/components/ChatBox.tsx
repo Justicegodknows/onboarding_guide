@@ -6,6 +6,7 @@ interface ChatBoxProps {
     department?: string;
     title?: string;
     onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
+    onClose?: () => void;
 }
 
 interface Message {
@@ -14,7 +15,7 @@ interface Message {
     sources?: any[];
 }
 
-export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
+export default function ChatBox({ department, title, onSend, onClose }: ChatBoxProps) {
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [history, setHistory] = useState<string[]>([]);
@@ -54,13 +55,26 @@ export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
     }
 
     return (
-        <div className="w-full max-w-3xl mx-auto mt-8 p-6 border rounded-2xl bg-white shadow-lg dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center gap-2 mb-6 border-b pb-4">
-                <span className="text-2xl">🔒</span>
-                <h2 className="text-2xl font-extrabold text-primary dark:text-white">{title ?? "Chat with RAG Agent"}</h2>
+        <div className="w-screen h-screen flex flex-col bg-white dark:bg-zinc-900">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔒</span>
+                    <h2 className="text-xl font-bold text-primary dark:text-white">{title ?? "Chat with RAG Agent"}</h2>
+                </div>
+                {onClose && (
+                    <button
+                        onClick={onClose}
+                        className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-2"
+                        aria-label="Close chat"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                )}
             </div>
 
-            <div className="space-y-4 mb-6 h-96 overflow-y-auto p-2 rounded-xl bg-zinc-50/70 dark:bg-zinc-950/50 border border-zinc-100 dark:border-zinc-800">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.length === 0 && (
                     <div className="text-center text-muted py-20">
                         <p className="text-lg font-medium">Welcome to VaultMind</p>
@@ -68,26 +82,12 @@ export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
                     </div>
                 )}
                 {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] p-3 rounded-lg ${msg.role === "user"
-                            ? "bg-primary text-white rounded-br-none"
-                            : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100 rounded-bl-none border-l-4 border-accent"
-                            }`}>
+                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-4`}>
+                        <div className={`max-w-2xl ${msg.role === "user"
+                            ? "bg-primary text-white"
+                            : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                            } px-4 py-3 rounded-lg`}>
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-
-                            {msg.sources && msg.sources.length > 0 && (
-                                <div className="mt-3 pt-2 border-t border-zinc-300 dark:border-zinc-700">
-                                    <p className="text-xs font-bold text-accent mb-1 uppercase">Sources:</p>
-                                    <div className="grid gap-2">
-                                        {msg.sources.map((src, idx) => (
-                                            <div key={idx} className="text-[10px] p-2 bg-white dark:bg-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-600">
-                                                <span className="font-bold text-primary dark:text-white">[{idx + 1}] {src.source}</span>
-                                                <p className="italic text-zinc-600 dark:text-zinc-400">{src.content}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 ))}
@@ -106,7 +106,7 @@ export default function ChatBox({ department, title, onSend }: ChatBoxProps) {
                 <div ref={bottomRef} />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <input
                     className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
                     type="text"
