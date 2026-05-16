@@ -206,9 +206,9 @@ class RAGService:
         except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
             # NVIDIA NIM unreachable — fall back to LM Studio
             pass
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code not in (502, 503, 504):
-                raise
+        except httpx.HTTPStatusError:
+            # Any HTTP error from NVIDIA NIM should fall back to LM Studio.
+            pass
 
         # LM Studio fallback
         lm_base = runtime_settings.LM_STUDIO_BASE_URL.rstrip("/")
@@ -261,8 +261,9 @@ class RAGService:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 401:
                 return (
-                    "NVIDIA NIM returned 401 Unauthorized. "
-                    "Check NVIDIA_API_KEY in rag_backend/.env."
+                    "Received 401 Unauthorized from NVIDIA NIM or LM Studio. "
+                    "Check NVIDIA_API_KEY in rag_backend/.env, and verify your "
+                    "LM_STUDIO_BASE_URL and LLM_API_KEY settings if LM Studio is used."
                 )
             return (
                 f"LLM request failed with status {exc.response.status_code}. "

@@ -145,9 +145,14 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                {/* Default credentials hint — remove in production */}
-                <p className="mt-5 text-center text-xs text-zinc-400">
-                    Default admin: <span className="font-mono font-semibold text-zinc-600">EUZadmin</span> /{" "}
+                <p className="mt-5 text-center text-sm text-zinc-500">
+                    Need an account?{' '}
+                    <a href="/register" className="font-semibold text-cyan-700 hover:text-cyan-900 underline">
+                        Register here
+                    </a>
+                </p>
+                <p className="mt-4 text-center text-xs text-zinc-400">
+                    Default admin: <span className="font-mono font-semibold text-zinc-600">EUZadmin</span> /{' '}
                     <span className="font-mono font-semibold text-zinc-600">admin</span>
                 </p>
             </div>

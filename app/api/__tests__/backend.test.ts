@@ -1,15 +1,25 @@
-import {
-    healthCheck,
-    sendChat,
-    getDepartments,
-    getDepartment,
-    sendDepartmentChat,
-    sendDepartmentTrainerChat,
-    API_URL,
-} from '../backend';
+let API_URL: string;
+let healthCheck: any;
+let sendChat: any;
+let getDepartments: any;
+let getDepartment: any;
+let sendDepartmentChat: any;
+let sendDepartmentTrainerChat: any;
 
 describe('backend API helpers', () => {
     beforeEach(() => {
+        process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8000';
+        jest.resetModules();
+        const backend = require('../backend');
+
+        API_URL = backend.API_URL;
+        healthCheck = backend.healthCheck;
+        sendChat = backend.sendChat;
+        getDepartments = backend.getDepartments;
+        getDepartment = backend.getDepartment;
+        sendDepartmentChat = backend.sendDepartmentChat;
+        sendDepartmentTrainerChat = backend.sendDepartmentTrainerChat;
+
         global.fetch = jest.fn();
     });
 
@@ -18,8 +28,16 @@ describe('backend API helpers', () => {
     });
 
     describe('API_URL', () => {
-        it('defaults to http://localhost:8000 when env var is not set', () => {
+        it('uses NEXT_PUBLIC_API_URL from the environment', () => {
             expect(API_URL).toBe('http://localhost:8000');
+        });
+
+        it('throws a clear error if NEXT_PUBLIC_API_URL is missing', () => {
+            delete process.env.NEXT_PUBLIC_API_URL;
+            jest.resetModules();
+            expect(() => require('../backend')).toThrow(
+                'NEXT_PUBLIC_API_URL is not set. Please set it in your .env file to the public backend URL'
+            );
         });
     });
 
