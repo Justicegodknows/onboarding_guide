@@ -76,7 +76,7 @@ export default function HomeClient({ departments }: HomeClientProps) {
     return (
         <>
             {isChatOpen ? (
-                <ChatBox title="VaultMind Assistant" onClose={() => setIsChatOpen(false)} />
+                <ChatBox title="VaultMind Assistant" onClose={() => setIsChatOpen(false)} fullPage />
             ) : (
                 <div className="relative min-h-screen bg-zinc-50 dark:bg-black py-16 px-6 md:px-8 font-sans overflow-hidden">
                     <div className="pointer-events-none absolute inset-0 opacity-60">

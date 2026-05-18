@@ -27,9 +27,9 @@ export default async function DepartmentPage({ params }: DepartmentPageProps) {
     }
 
     return (
-        <div className="flex min-h-screen bg-zinc-50 dark:bg-black font-sans">
+        <div className="flex min-h-screen bg-gradient-to-br from-slate-100 via-white to-cyan-50 dark:bg-black font-sans">
             <DepartmentMenu departments={allDepartments} />
-            <main className="flex flex-1 flex-col py-12 px-8 bg-white dark:bg-black">
+            <main className="flex flex-1 flex-col py-12 px-6 md:px-8 lg:px-10 bg-transparent">
                 <DepartmentWorkspace
                     id={department.id}
                     name={department.name}

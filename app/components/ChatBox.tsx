@@ -7,6 +7,7 @@ interface ChatBoxProps {
     title?: string;
     onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
     onClose?: () => void;
+    fullPage?: boolean;
 }
 
 interface Message {
@@ -15,7 +16,7 @@ interface Message {
     sources?: any[];
 }
 
-export default function ChatBox({ department, title, onSend, onClose }: ChatBoxProps) {
+export default function ChatBox({ department, title, onSend, onClose, fullPage = false }: ChatBoxProps) {
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [history, setHistory] = useState<string[]>([]);
@@ -54,8 +55,12 @@ export default function ChatBox({ department, title, onSend, onClose }: ChatBoxP
         }
     }
 
+    const containerClasses = fullPage
+        ? "min-h-screen h-screen w-screen"
+        : "h-full min-h-[32rem] w-full rounded-[1.75rem] border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950";
+
     return (
-        <div className="w-screen h-screen flex flex-col bg-white dark:bg-zinc-900">
+        <div className={`flex flex-col bg-white dark:bg-zinc-900 ${containerClasses}`}>
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl">🔒</span>
@@ -78,7 +83,7 @@ export default function ChatBox({ department, title, onSend, onClose }: ChatBoxP
                 {messages.length === 0 && (
                     <div className="text-center text-muted py-20">
                         <p className="text-lg font-medium">Welcome to VaultMind</p>
-                        <p className="text-sm">Ask any question about company documents.</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">Ask any question about company documents.</p>
                     </div>
                 )}
                 {messages.map((msg, i) => (
@@ -86,14 +91,15 @@ export default function ChatBox({ department, title, onSend, onClose }: ChatBoxP
                         <div className={`max-w-2xl ${msg.role === "user"
                             ? "bg-primary text-white"
                             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                            } px-4 py-3 rounded-lg`}>
+                            } px-5 py-4 rounded-3xl shadow-sm`}
+                        >
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                         </div>
                     </div>
                 ))}
                 {loading && (
                     <div className="flex justify-start">
-                        <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg rounded-bl-none animate-pulse text-sm shadow-sm">
+                        <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-3xl animate-pulse text-sm shadow-sm">
                             VaultMind is searching documents...
                         </div>
                     </div>
@@ -106,9 +112,9 @@ export default function ChatBox({ department, title, onSend, onClose }: ChatBoxP
                 <div ref={bottomRef} />
             </div>
 
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <div className="flex flex-col gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 sm:flex-row">
                 <input
-                    className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent dark:bg-zinc-800 dark:text-white dark:border-zinc-700"
+                    className="flex-1 rounded-3xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-cyan-400 dark:focus:ring-cyan-500/20"
                     type="text"
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
@@ -117,7 +123,7 @@ export default function ChatBox({ department, title, onSend, onClose }: ChatBoxP
                     disabled={loading}
                 />
                 <button
-                    className="bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-opacity-90 transition-all disabled:bg-zinc-400"
+                    className="inline-flex items-center justify-center rounded-3xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:bg-zinc-400"
                     onClick={handleSend}
                     disabled={loading || !question.trim()}
                 >
