@@ -1,8 +1,12 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// Use proxy on client-side (browser), direct DGX on server-side
+// This avoids mixed content errors (HTTPS → HTTP) when deployed to Vercel
+export const API_URL = typeof window === 'undefined'
+    ? (process.env.DGX_BACKEND_URL || 'http://192.168.18.199:8000')  // Server-side: direct DGX
+    : (process.env.NEXT_PUBLIC_API_URL || '/api/proxy');  // Client-side: use proxy
 
 if (!API_URL) {
     throw new Error(
-        'NEXT_PUBLIC_API_URL is not set. Please set it in your .env file to the public backend URL (e.g., your dev tunnel backend URL). Remote users cannot access localhost.'
+        'API_URL could not be determined. Ensure NEXT_PUBLIC_API_URL (client) or DGX_BACKEND_URL (server) is set.'
     );
 }
 
