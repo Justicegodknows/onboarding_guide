@@ -59,12 +59,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # CORS setup for frontend integration
-# Allow all origins for local development and dev tunnel hosts.
-# If you need a stricter policy in production, set CORS_ORIGINS in rag_backend/.env.
+# Load origins from .env CORS_ORIGINS setting for production-grade security.
+from app.core.config import settings
+import json
+
+cors_origins = []
+if settings.CORS_ORIGINS:
+    cors_origins = settings.CORS_ORIGINS
+else:
+    # Fallback for local development
+    cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
