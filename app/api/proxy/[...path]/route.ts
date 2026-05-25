@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const DGX_BACKEND_URL = process.env.DGX_BACKEND_URL || 'http://192.168.18.199:8000';
+// Use Cloudflare HTTPS domain if available, otherwise fall back to DGX direct URL
+const DGX_BACKEND_URL = process.env.CLOUDFLARE_BACKEND_URL
+    || process.env.DGX_BACKEND_URL
+    || 'http://192.168.18.199:8000';
 
 async function handler(req: NextRequest) {
     try {

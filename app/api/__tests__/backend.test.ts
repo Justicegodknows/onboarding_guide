@@ -28,15 +28,24 @@ describe('backend API helpers', () => {
     });
 
     describe('API_URL', () => {
-        it('uses NEXT_PUBLIC_API_URL from the environment', () => {
+        it('uses NEXT_PUBLIC_API_URL from the environment on client-side', () => {
             expect(API_URL).toBe('http://localhost:8000');
         });
 
-        it('throws a clear error if NEXT_PUBLIC_API_URL is missing', () => {
+        it('uses DGX_BACKEND_URL on server-side when NEXT_PUBLIC_API_URL is missing', () => {
             delete process.env.NEXT_PUBLIC_API_URL;
+            process.env.DGX_BACKEND_URL = 'https://vaultmind.example.com';
+            jest.resetModules();
+            const backend = require('../backend');
+            expect(backend.API_URL).toBe('https://vaultmind.example.com');
+        });
+
+        it('throws a clear error if both NEXT_PUBLIC_API_URL and DGX_BACKEND_URL are missing', () => {
+            delete process.env.NEXT_PUBLIC_API_URL;
+            delete process.env.DGX_BACKEND_URL;
             jest.resetModules();
             expect(() => require('../backend')).toThrow(
-                'NEXT_PUBLIC_API_URL is not set. Please set it in your .env file to the public backend URL'
+                'API_URL could not be determined'
             );
         });
     });

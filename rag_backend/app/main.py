@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.db import Base, SessionLocal, engine
 from app.models import db_models  # noqa: F401 — import side-effects register all ORM models
@@ -58,6 +59,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Trust Cloudflare proxy headers for HTTPS detection and proper request routing
+# This allows the app to correctly identify HTTPS requests from Cloudflare tunnel
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*.cloudflare.com", "192.168.18.199", "localhost", "127.0.0.1"],
+)
+
 # CORS setup for frontend integration
 # Load origins from .env CORS_ORIGINS setting for production-grade security.
 from app.core.config import settings
@@ -88,6 +96,27 @@ app.include_router(ingest.router)
 app.include_router(trainer.router)
 app.include_router(departments.router)
 app.include_router(integrations_router)
+
+@app.middleware("http")
+async def add_cloudflare_headers_middleware(request: Request, call_next):
+    """Handle Cloudflare tunnel headers (X-Forwarded-* headers for HTTPS detection)"""
+    response = await call_next(request)
+    
+    # Add CORS headers if not already present
+    if "access-control-allow-origin" not in response.headers:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    if "access-control-allow-methods" not in response.headers:
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    if "access-control-allow-headers" not in response.headers:
+        response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type,Accept"
+    
+    # Security headers for HTTPS deployment
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    return response
 
 @app.middleware("http")
 async def add_fallback_cors_headers(request: Request, call_next):
