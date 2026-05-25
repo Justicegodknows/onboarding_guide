@@ -183,6 +183,23 @@ psql -h 192.168.18.199 -U postgres -d postgres -c "SELECT 1;"
 # Default password from .env is "postgres"
 ```
 
+### ChromaDB not reachable externally
+```bash
+# ChromaDB inside the container listens on port 8000.
+# The host port must be published as 8100:8000.
+# Verify the compose mapping is correct:
+cat docker-compose.yml | grep -A3 "chroma:"
+
+# If the mapping is wrong, update it to:
+#   - "8100:8000"
+
+# Then recreate the container:
+docker-compose up -d --force-recreate chroma
+
+# Verify from the host:
+curl http://192.168.18.199:8100/api/v1/heartbeat
+```
+
 ### ChromaDB not persisting data
 ```bash
 # Verify volume mount

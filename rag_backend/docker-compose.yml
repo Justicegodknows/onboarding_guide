@@ -36,7 +36,7 @@ services:
     image: chromadb/chroma:0.5.23
     restart: always
     ports:
-      - "8100:8100"
+      - "8100:8000"
     volumes:
       - /home/admin/app-data/chromadb:/chroma/.chroma/index
   redis:
