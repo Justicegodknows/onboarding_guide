@@ -1,8 +1,9 @@
-// Use proxy on client-side (browser), direct DGX on server-side
-// This avoids mixed content errors (HTTPS → HTTP) when deployed to Vercel
+// Option A: Direct Cloudflare tunnel calls (recommended)
+// Frontend calls api.euzs.life via Cloudflare tunnel → routes to DGX backend:8000
+// This avoids proxy overhead and mixed-content issues
 export const API_URL = typeof window === 'undefined'
-    ? (process.env.DGX_BACKEND_URL || 'http://192.168.18.199:8000')  // Server-side: direct DGX
-    : (process.env.NEXT_PUBLIC_API_URL || '/api/proxy');  // Client-side: use proxy
+    ? (process.env.DGX_BACKEND_URL || 'https://api.euzs.life')  // Server-side: direct API
+    : (process.env.NEXT_PUBLIC_API_URL || 'https://api.euzs.life');  // Client-side: direct API
 
 if (!API_URL) {
     throw new Error(

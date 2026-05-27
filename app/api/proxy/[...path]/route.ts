@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Use Cloudflare HTTPS domain if available, otherwise fall back to DGX direct URL
+// Proxy route for Option B fallback (not used in current Option A setup)
+// Option A: Frontend calls Cloudflare tunnel directly (https://api.euzs.life)
+// Option B fallback: If needed, proxy to backend via this route
 const DGX_BACKEND_URL = process.env.CLOUDFLARE_BACKEND_URL
     || process.env.DGX_BACKEND_URL
-    || 'http://192.168.18.199:8000';
+    || 'https://api.euzs.life';  // Default to Cloudflare tunnel domain
 
 async function handler(req: NextRequest) {
     try {

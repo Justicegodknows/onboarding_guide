@@ -63,7 +63,7 @@ app = FastAPI(lifespan=lifespan)
 # This allows the app to correctly identify HTTPS requests from Cloudflare tunnel
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*.cloudflare.com", "192.168.18.199", "localhost", "127.0.0.1"],
+    allowed_hosts=["api.euzs.life", "*.cloudflare.com", "192.168.18.199", "localhost", "127.0.0.1"],
 )
 
 # CORS setup for frontend integration
@@ -102,28 +102,12 @@ async def add_cloudflare_headers_middleware(request: Request, call_next):
     """Handle Cloudflare tunnel headers (X-Forwarded-* headers for HTTPS detection)"""
     response = await call_next(request)
     
-    # Add CORS headers if not already present
-    if "access-control-allow-origin" not in response.headers:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    if "access-control-allow-methods" not in response.headers:
-        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    if "access-control-allow-headers" not in response.headers:
-        response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type,Accept"
-    
     # Security headers for HTTPS deployment
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     
-    return response
-
-@app.middleware("http")
-async def add_fallback_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type,Accept"
     return response
 
 @app.options("/{rest_of_path:path}")

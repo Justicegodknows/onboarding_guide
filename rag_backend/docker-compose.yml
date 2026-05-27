@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    restart: always
     ports:
       - "8000:8000"
     volumes:
@@ -8,7 +9,7 @@ services:
       - ../help:/app/help
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
-      - CHROMA_URL=http://chroma:8100
+      - CHROMA_URL=http://chroma:8000
       - REDIS_URL=redis://redis:6379/0
       - LLM_API_KEY=${LLM_API_KEY}
       - LM_STUDIO_BASE_URL=http://192.168.18.199:1234
@@ -19,6 +20,7 @@ services:
       - NVIDIA_BASE_URL=${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
       - NVIDIA_EMBED_MODEL=${NVIDIA_EMBED_MODEL:-nvidia/llama-nemotron-embed-1b-v2}
       - NVIDIA_CHAT_MODEL=${NVIDIA_CHAT_MODEL:-meta/llama-3.3-70b-instruct}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     depends_on:
       - postgres
       - chroma
