@@ -13,6 +13,16 @@ from app.routers.integrations import router as integrations_router
 from app.core.security import get_password_hash
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "EUZ Backend is live"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create all DB tables on startup (idempotent — safe to call multiple times)
