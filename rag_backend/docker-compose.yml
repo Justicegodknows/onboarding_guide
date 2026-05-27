@@ -7,6 +7,8 @@ services:
     volumes:
       - ./:/app
       - ../help:/app/help
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
       - CHROMA_URL=http://chroma:8000
@@ -14,7 +16,7 @@ services:
       - LLM_API_KEY=${LLM_API_KEY}
       - LM_STUDIO_BASE_URL=http://192.168.18.199:1234
       - LM_STUDIO_MODEL=google/gemma-4-E4B-it
-      - OLLAMA_BASE_URL=http://192.168.18.199:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=gemma4
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - NVIDIA_BASE_URL=${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
