@@ -66,10 +66,17 @@ app.add_middleware(
     allowed_hosts=["*"]  # allow all — Cloudflare handles security
 )
 
-cors_origins = settings.CORS_ORIGINS if settings.CORS_ORIGINS else [
+_default_origins = [
+    "https://www.euzs.life",
+    "https://api.euzs.life",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+cors_origins = list(settings.CORS_ORIGINS) if settings.CORS_ORIGINS else _default_origins
+# Always guarantee the production domain is present regardless of env var state
+for _origin in ["https://www.euzs.life", "https://api.euzs.life"]:
+    if _origin not in cors_origins:
+        cors_origins.append(_origin)
 
 app.add_middleware(
     CORSMiddleware,
