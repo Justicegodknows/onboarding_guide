@@ -7,6 +7,7 @@ services:
     volumes:
       - ./:/app
       - ../help:/app/help
+      - ../rag-agent-skills:/app/rag-agent-skills
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:

@@ -19,7 +19,10 @@ from app.models.knowledge_base import (
     TrainerSourceSnapshot,
 )
 from app.services.google_drive_knowledge import GoogleDriveKnowledgeService
+from prompts.skills import build_trainer_agent_skills
 
+# Loaded once at module import — no per-request disk I/O.
+_TRAINER_SKILLS: str = build_trainer_agent_skills()
 
 logger = logging.getLogger(__name__)
 
@@ -1038,16 +1041,16 @@ class TrainerSubAgent:
                 f"{prior.get('answer', '')}"
             )
 
-        system = (
-            system_prompt_override
-            or (
-                "You are Trainer, a sub-agent focused on employee training. "
-                "You must treat the configured Google Drive folder as the primary knowledge base. "
-                "Use tool calls whenever external context is needed. "
-                "Prioritize Google Drive knowledge first, then local training data, "
-                "then core website snapshots, then other sources."
-            )
+        _base_system = (
+            "You are Trainer, a sub-agent focused on employee training. "
+            "You must treat the configured Google Drive folder as the primary knowledge base. "
+            "Use tool calls whenever external context is needed. "
+            "Prioritize Google Drive knowledge first, then local training data, "
+            "then core website snapshots, then other sources."
         )
+        if _TRAINER_SKILLS:
+            _base_system = _base_system + "\n\n" + _TRAINER_SKILLS
+        system = system_prompt_override or _base_system
 
         user_prompt = (
             f"{question}\n\n"
