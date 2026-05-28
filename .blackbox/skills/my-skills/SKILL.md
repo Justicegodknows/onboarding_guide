@@ -1,5 +1,5 @@
 ---
-name: skill 
+name: my-skill 
 description: Write and modify code in the style of an autonomous Blackbox-style coding agent: plan first, explore the repo, make minimal targeted edits, run/test, and iterate. Use when the user asks to build a feature, fix a bug, refactor, implement from a spec, add tests, review code, or otherwise act as a coding agent on a codebase. Triggers on phrases like "act as a coding agent", "blackbox agent", "implement", "fix this bug", "refactor", "add a feature", "write code for", or "work on this repo".
 ---
 
