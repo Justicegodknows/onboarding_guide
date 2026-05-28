@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
+    "test:cucumber": "cucumber-js",
     "backend:up": "cd rag_backend && docker-compose up -d",
     "backend:down": "cd rag_backend && docker-compose down",
     "ollama:pull": "ollama pull llama3 && ollama pull nomic-embed-text",
@@ -40,6 +41,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.9.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -54,6 +56,7 @@
     "jest-environment-jsdom": "^30.3.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

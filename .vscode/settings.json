@@ -12,5 +12,17 @@
         "copilot/gpt-5-mini"
       ]
     }
+  },
+  "cucumberautocomplete.steps": [
+    "features/step_definitions/**/*.ts",
+    "features/step_definitions/**/*.js"
+  ],
+  "cucumberautocomplete.syncfeatures": "features/**/*.feature",
+  "cucumberautocomplete.strictGherkinCompletion": true,
+  "cucumberautocomplete.customParameters": [],
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
   }
 }
