@@ -20,6 +20,7 @@ Pillow
 openai-whisper
 ffmpeg-python
 youtube-transcript-api
+yt-dlp
 pytest
 pytest-asyncio
 python-multipart
