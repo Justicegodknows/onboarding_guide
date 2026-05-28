@@ -10,20 +10,20 @@ interface SideMenuProps {
 
 export default function SideMenu({ selected, onSelect }: SideMenuProps) {
     return (
-        <aside className="w-64 min-h-screen bg-zinc-100 dark:bg-zinc-900 border-r p-4 flex flex-col">
-            <h2 className="text-lg font-bold mb-4">Departments</h2>
+        <aside className="w-64 min-h-screen bg-white border-r border-gray-200 p-4 flex flex-col">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Departments</h2>
             <ul className="flex-1">
                 {departments.map((dept) => (
                     <li key={dept.id}>
                         <button
-                            className={`w-full text-left px-3 py-2 rounded mb-2 transition-colors ${selected === dept.id
+                            className={`w-full text-left px-3 py-2 rounded-lg mb-2 transition-colors ${selected === dept.id
                                 ? "bg-blue-600 text-white"
-                                : "hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                                : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
                                 }`}
                             onClick={() => onSelect(dept.id)}
                         >
                             <div className="font-semibold">{dept.name}</div>
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400">{dept.description}</div>
+                            <div className={`text-xs ${selected === dept.id ? "text-blue-100" : "text-gray-500"}`}>{dept.description}</div>
                         </button>
                     </li>
                 ))}

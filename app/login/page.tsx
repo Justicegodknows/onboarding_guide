@@ -40,31 +40,25 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
-            {/* Background blobs */}
-            <div className="pointer-events-none fixed inset-0 overflow-hidden">
-                <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-200/50 blur-3xl" />
-                <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-blue-200/40 blur-3xl" />
-            </div>
-
+        <div className="min-h-screen flex items-center justify-center bg-white px-4">
             <div className="relative w-full max-w-sm">
                 {/* Logo / Brand */}
                 <div className="mb-8 text-center">
-                    <span className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 bg-cyan-100 px-3 py-1 rounded-full mb-4">
+                    <span className="inline-block text-xs font-bold uppercase tracking-[0.18em] text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mb-4">
                         Private Knowledge AI
                     </span>
-                    <h1 className="text-4xl font-bold text-zinc-900 tracking-tight">VaultMind</h1>
-                    <p className="text-sm text-zinc-500 mt-2">Sign in to your workspace</p>
+                    <h1 className="text-4xl font-bold text-gray-900 tracking-tight">VaultMind</h1>
+                    <p className="text-sm text-gray-500 mt-2">Sign in to your workspace</p>
                 </div>
 
                 {/* Card */}
-                <div className="rounded-3xl border border-zinc-200 bg-white shadow-xl px-8 py-9">
+                <div className="rounded-3xl border border-gray-200 bg-white shadow-md px-8 py-9">
                     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
                         {/* Username */}
                         <div className="flex flex-col gap-1.5">
                             <label
                                 htmlFor="vm-username"
-                                className="text-xs font-bold uppercase tracking-widest text-zinc-500"
+                                className="text-xs font-bold uppercase tracking-widest text-gray-500"
                             >
                                 Username
                             </label>
@@ -77,7 +71,7 @@ export default function LoginPage() {
                                 onChange={(e) => setUsername(e.target.value)}
                                 placeholder="e.g. EUZadmin"
                                 required
-                                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition"
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
                             />
                         </div>
 
@@ -85,7 +79,7 @@ export default function LoginPage() {
                         <div className="flex flex-col gap-1.5">
                             <label
                                 htmlFor="vm-password"
-                                className="text-xs font-bold uppercase tracking-widest text-zinc-500"
+                                className="text-xs font-bold uppercase tracking-widest text-gray-500"
                             >
                                 Password
                             </label>
@@ -98,12 +92,12 @@ export default function LoginPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
                                     required
-                                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 pr-12 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword((p) => !p)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition text-xs font-medium select-none"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition text-xs font-medium select-none"
                                     aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
                                     {showPassword ? "Hide" : "Show"}
@@ -128,7 +122,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading || !username.trim() || !password}
-                            className="mt-1 w-full rounded-full bg-[#0D1B2A] py-3 text-sm font-bold text-white hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 shadow-lg"
+                            className="mt-1 w-full rounded-full bg-blue-700 py-3 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:-translate-y-0.5 shadow-md"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -145,15 +139,15 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                <p className="mt-5 text-center text-sm text-zinc-500">
+                <p className="mt-5 text-center text-sm text-gray-500">
                     Need an account?{' '}
-                    <a href="/register" className="font-semibold text-cyan-700 hover:text-cyan-900 underline">
+                    <a href="/register" className="font-semibold text-blue-600 hover:text-blue-800 underline">
                         Register here
                     </a>
                 </p>
-                <p className="mt-4 text-center text-xs text-zinc-400">
-                    Default admin: <span className="font-mono font-semibold text-zinc-600">EUZadmin</span> /{' '}
-                    <span className="font-mono font-semibold text-zinc-600">admin</span>
+                <p className="mt-4 text-center text-xs text-gray-400">
+                    Default admin: <span className="font-mono font-semibold text-gray-600">EUZadmin</span> /{' '}
+                    <span className="font-mono font-semibold text-gray-600">admin</span>
                 </p>
             </div>
         </div>

@@ -57,19 +57,20 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
 
     const containerClasses = fullPage
         ? "min-h-screen h-screen w-screen"
-        : "h-full min-h-[32rem] w-full rounded-[1.75rem] border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950";
+        : "h-full min-h-[32rem] w-full rounded-[1.75rem] border border-gray-200 bg-white shadow-sm";
 
     return (
-        <div className={`flex flex-col bg-white dark:bg-zinc-900 ${containerClasses}`}>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div className={`flex flex-col bg-white ${containerClasses}`}>
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl">🔒</span>
-                    <h2 className="text-xl font-bold text-primary dark:text-white">{title ?? "Chat with RAG Agent"}</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{title ?? "Chat with RAG Agent"}</h2>
                 </div>
                 {onClose && (
                     <button
                         onClick={onClose}
-                        className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors p-2"
+                        className="text-gray-400 hover:text-gray-700 transition-colors p-2"
                         aria-label="Close chat"
                     >
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,19 +80,20 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
                 )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
                 {messages.length === 0 && (
-                    <div className="text-center text-muted py-20">
-                        <p className="text-lg font-medium">Welcome to VaultMind</p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">Ask any question about company documents.</p>
+                    <div className="text-center py-20">
+                        <p className="text-lg font-medium text-gray-800">Welcome to VaultMind</p>
+                        <p className="text-sm text-gray-500 mt-1">Ask any question about company documents.</p>
                     </div>
                 )}
                 {messages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-4`}>
-                        <div className={`max-w-2xl ${msg.role === "user"
-                            ? "bg-primary text-white"
-                            : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                            } px-5 py-4 rounded-3xl shadow-sm`}
+                        <div className={`max-w-2xl px-5 py-4 rounded-3xl shadow-sm ${msg.role === "user"
+                            ? "bg-blue-700 text-white"
+                            : "bg-blue-50 text-gray-900 border border-blue-100"
+                            }`}
                         >
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                         </div>
@@ -99,22 +101,23 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
                 ))}
                 {loading && (
                     <div className="flex justify-start">
-                        <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-3xl animate-pulse text-sm shadow-sm">
+                        <div className="bg-blue-50 border border-blue-100 p-3 rounded-3xl animate-pulse text-sm shadow-sm text-gray-600">
                             VaultMind is searching documents...
                         </div>
                     </div>
                 )}
                 {error && (
-                    <div className="text-center text-red-500 text-xs mt-2 bg-red-50 p-2 rounded border border-red-100">
+                    <div className="text-center text-red-600 text-xs mt-2 bg-red-50 p-2 rounded border border-red-200">
                         {error}
                     </div>
                 )}
                 <div ref={bottomRef} />
             </div>
 
-            <div className="flex flex-col gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 sm:flex-row">
+            {/* Input */}
+            <div className="flex flex-col gap-3 px-6 py-4 border-t border-gray-200 bg-white sm:flex-row">
                 <input
-                    className="flex-1 rounded-3xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:focus:border-cyan-400 dark:focus:ring-cyan-500/20"
+                    className="flex-1 rounded-3xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     type="text"
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
@@ -123,7 +126,7 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
                     disabled={loading}
                 />
                 <button
-                    className="inline-flex items-center justify-center rounded-3xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:bg-zinc-400"
+                    className="inline-flex items-center justify-center rounded-3xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     onClick={handleSend}
                     disabled={loading || !question.trim()}
                 >

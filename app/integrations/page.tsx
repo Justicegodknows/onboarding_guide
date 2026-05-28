@@ -162,11 +162,11 @@ export default function IntegrationsPage() {
 
     if (!token) {
         return (
-            <main className="min-h-screen flex items-center justify-center bg-background px-6">
-                <div className="max-w-sm w-full bg-white border border-zinc-200 rounded-2xl p-8 shadow-lg text-center">
-                    <h1 className="text-2xl font-bold text-black mb-2">Sign in required</h1>
-                    <p className="text-zinc-500 text-sm mb-6">You must be signed in to manage integrations.</p>
-                    <Link href="/" className="inline-block px-6 py-2.5 bg-primary text-white rounded-full font-semibold hover:opacity-90 transition">
+            <main className="min-h-screen flex items-center justify-center bg-white px-6">
+                <div className="max-w-sm w-full bg-white border border-gray-200 rounded-2xl p-8 shadow-md text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign in required</h1>
+                    <p className="text-gray-500 text-sm mb-6">You must be signed in to manage integrations.</p>
+                    <Link href="/" className="inline-block px-6 py-2.5 bg-blue-700 text-white rounded-full font-semibold hover:bg-blue-800 transition">
                         Go to Home
                     </Link>
                 </div>
@@ -203,14 +203,14 @@ export default function IntegrationsPage() {
     };
 
     return (
-        <main className="min-h-screen bg-background text-foreground px-6 py-12">
+        <main className="min-h-screen bg-white text-gray-900 px-6 py-12">
             <div className="max-w-5xl mx-auto space-y-10">
                 <header className="space-y-2">
-                    <Link href="/" className="inline-block text-sm font-semibold text-accent hover:underline mb-2">
+                    <Link href="/" className="inline-block text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline mb-2">
                         ← Back to Home
                     </Link>
-                    <h1 className="text-4xl font-extrabold text-black">Integrations</h1>
-                    <p className="text-zinc-500 text-sm">
+                    <h1 className="text-4xl font-extrabold text-gray-900">Integrations</h1>
+                    <p className="text-gray-500 text-sm">
                         Connect VaultMind to your external tools. Credentials are stored securely and used only for authenticated API calls.
                         {!isAdmin && " Some settings require admin privileges."}
                     </p>
@@ -219,7 +219,7 @@ export default function IntegrationsPage() {
                 {/* Connected integrations */}
                 {integrations.length > 0 && (
                     <section>
-                        <h2 className="text-lg font-bold text-black mb-4">Connected</h2>
+                        <h2 className="text-lg font-bold text-gray-900 mb-4">Connected</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {integrations.map((intg) => {
                                 const def = INTEGRATION_CATALOGUE.find((d) => d.type === intg.integration_type);
@@ -227,21 +227,21 @@ export default function IntegrationsPage() {
                                 return (
                                     <div
                                         key={intg.id}
-                                        className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm flex flex-col gap-3"
+                                        className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex flex-col gap-3"
                                     >
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-2xl">{def?.icon ?? "🔌"}</span>
                                                 <div>
-                                                    <p className="font-bold text-black">{intg.name}</p>
-                                                    <p className="text-xs text-zinc-400 uppercase tracking-wide">{intg.integration_type}</p>
+                                                    <p className="font-bold text-gray-900">{intg.name}</p>
+                                                    <p className="text-xs text-gray-400 uppercase tracking-wide">{intg.integration_type}</p>
                                                 </div>
                                             </div>
                                             <StatusPill status={intg.status} />
                                         </div>
 
                                         {intg.is_org_wide && (
-                                            <span className="self-start text-xs bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-2 py-0.5">
+                                            <span className="self-start text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
                                                 Org-wide
                                             </span>
                                         )}
@@ -255,13 +255,13 @@ export default function IntegrationsPage() {
                                         <div className="flex gap-2 flex-wrap">
                                             <button
                                                 onClick={() => handleTest(intg.id)}
-                                                className="px-3 py-1.5 text-xs rounded-lg bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 transition-colors font-medium"
+                                                className="px-3 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors font-medium"
                                             >
                                                 Test
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedDef(def ?? null); setEditTarget(intg); }}
-                                                className="px-3 py-1.5 text-xs rounded-lg bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-200 transition-colors font-medium"
+                                                className="px-3 py-1.5 text-xs rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 transition-colors font-medium"
                                             >
                                                 Edit
                                             </button>
@@ -281,7 +281,7 @@ export default function IntegrationsPage() {
 
                 {/* Available integrations catalogue */}
                 <section>
-                    <h2 className="text-lg font-bold text-black mb-4">Available Integrations</h2>
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">Available Integrations</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {INTEGRATION_CATALOGUE.map((def) => {
                             const isConnected = connectedTypes.has(def.type);
@@ -290,18 +290,18 @@ export default function IntegrationsPage() {
                                     key={def.type}
                                     onClick={() => { setSelectedDef(def); setEditTarget(null); }}
                                     className={`text-left bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 flex flex-col gap-2
-                    ${isConnected ? "border-cyan-300 ring-1 ring-cyan-200" : "border-zinc-200"}`}
+                    ${isConnected ? "border-blue-300 ring-1 ring-blue-200" : "border-gray-200"}`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <span className="text-2xl">{def.icon}</span>
                                         {isConnected && (
-                                            <span className="text-xs bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-full px-2 py-0.5">
+                                            <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5">
                                                 Connected
                                             </span>
                                         )}
                                     </div>
-                                    <p className="font-bold text-black">{def.label}</p>
-                                    <p className="text-xs text-zinc-500 leading-relaxed">{def.description}</p>
+                                    <p className="font-bold text-gray-900">{def.label}</p>
+                                    <p className="text-xs text-gray-500 leading-relaxed">{def.description}</p>
                                 </button>
                             );
                         })}
@@ -382,24 +382,24 @@ function IntegrationModal({ def, editTarget, token, isAdmin, onClose, onSaved }:
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                         <span className="text-2xl">{def.icon}</span>
-                        <h2 className="font-bold text-black">
+                        <h2 className="font-bold text-gray-900">
                             {editTarget ? `Edit ${def.label}` : `Connect ${def.label}`}
                         </h2>
                     </div>
-                    <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xl font-bold leading-none">×</button>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl font-bold leading-none">×</button>
                 </div>
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                     <div>
-                        <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                             Display Name
                         </label>
                         <input
-                            className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
                             title="Integration display name"
                             placeholder="e.g. Company Email Server"
                             value={name}
@@ -409,12 +409,12 @@ function IntegrationModal({ def, editTarget, token, isAdmin, onClose, onSaved }:
 
                     {def.fields.map((f) => (
                         <div key={f.key}>
-                            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                                 {f.label}{f.required && <span className="text-red-500 ml-0.5">*</span>}
                             </label>
                             <input
                                 type={f.type}
-                                className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent font-mono"
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300 font-mono"
                                 placeholder={f.placeholder}
                                 value={fields[f.key] ?? ""}
                                 onChange={(e) => setField(f.key, e.target.value)}
@@ -427,11 +427,11 @@ function IntegrationModal({ def, editTarget, token, isAdmin, onClose, onSaved }:
                         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                             <input
                                 type="checkbox"
-                                className="rounded accent-cyan-600"
+                                className="rounded accent-blue-600"
                                 checked={orgWide}
                                 onChange={(e) => setOrgWide(e.target.checked)}
                             />
-                            <span className="text-zinc-700">Make this integration available to all users</span>
+                            <span className="text-gray-700">Make this integration available to all users</span>
                         </label>
                     )}
 
@@ -441,17 +441,17 @@ function IntegrationModal({ def, editTarget, token, isAdmin, onClose, onSaved }:
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100">
+                <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 text-sm rounded-xl border border-zinc-200 hover:bg-zinc-50 transition-colors"
+                        className="px-4 py-2 text-sm rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="px-5 py-2 text-sm rounded-xl bg-primary text-white font-semibold hover:opacity-90 transition disabled:opacity-50"
+                        className="px-5 py-2 text-sm rounded-xl bg-blue-700 text-white font-semibold hover:bg-blue-800 transition disabled:opacity-50"
                     >
                         {saving ? "Saving…" : editTarget ? "Update" : "Connect"}
                     </button>
@@ -468,7 +468,7 @@ function IntegrationModal({ def, editTarget, token, isAdmin, onClose, onSaved }:
 function StatusPill({ status }: { status: string }) {
     const styles: Record<string, string> = {
         active: "bg-green-50 text-green-700 border-green-200",
-        inactive: "bg-zinc-50 text-zinc-500 border-zinc-200",
+        inactive: "bg-gray-50 text-gray-500 border-gray-200",
         error: "bg-red-50 text-red-600 border-red-200",
     };
     return (

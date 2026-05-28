@@ -57,39 +57,39 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
     }
 
     return (
-        <div className="mt-auto border-t pt-3">
+        <div className="mt-auto border-t border-gray-200 pt-3">
             <button
-                className="w-full flex items-center justify-between px-3 py-2 rounded bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 text-sm font-semibold transition-colors border border-blue-200"
                 onClick={() => setOpen((v) => !v)}
             >
                 <span>{title ?? "🎓 Trainer Assistant"}</span>
-                <span className="text-xs">{open ? "▲" : "▼"}</span>
+                <span className="text-xs text-blue-500">{open ? "▲" : "▼"}</span>
             </button>
 
             {open && (
                 <div className="flex flex-col mt-2 gap-2">
-                    <div className="h-48 overflow-y-auto rounded border bg-white dark:bg-zinc-950 p-2 flex flex-col gap-2 text-xs">
+                    <div className="h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 flex flex-col gap-2 text-xs">
                         {messages.length === 0 && (
-                            <p className="text-zinc-400 italic">Ask the trainer anything…</p>
+                            <p className="text-gray-400 italic">Ask the trainer anything…</p>
                         )}
                         {messages.map((msg, i) => (
                             <div
                                 key={i}
-                                className={`rounded px-2 py-1 max-w-[90%] whitespace-pre-wrap ${msg.role === "user"
+                                className={`rounded-xl px-2 py-1 max-w-[90%] whitespace-pre-wrap ${msg.role === "user"
                                     ? "self-end bg-blue-600 text-white"
-                                    : "self-start bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
+                                    : "self-start bg-blue-50 text-gray-800 border border-blue-100"
                                     }`}
                             >
                                 {msg.text}
                             </div>
                         ))}
                         {loading && (
-                            <div className="self-start bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-zinc-400 italic">
+                            <div className="self-start bg-blue-50 border border-blue-100 rounded-xl px-2 py-1 text-gray-400 italic">
                                 Thinking…
                             </div>
                         )}
                         {error && (
-                            <div className="self-start bg-red-100 text-red-700 rounded px-2 py-1">
+                            <div className="self-start bg-red-50 text-red-700 rounded-xl px-2 py-1 border border-red-200">
                                 {error}
                             </div>
                         )}
@@ -98,7 +98,7 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
 
                     <div className="flex gap-1">
                         <input
-                            className="flex-1 text-xs p-1.5 border rounded bg-white dark:bg-zinc-950 dark:text-white"
+                            className="flex-1 text-xs p-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:border-blue-400"
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -107,7 +107,7 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
                             disabled={loading}
                         />
                         <button
-                            className="px-2 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50"
+                            className="px-2 py-1 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
                             onClick={handleSend}
                             disabled={loading || !input.trim()}
                         >
