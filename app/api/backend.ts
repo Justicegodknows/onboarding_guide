@@ -48,6 +48,28 @@ export async function sendChat(question: string, history: string[] = [], token?:
     return res.json();
 }
 
+export interface TrainerUploadResult {
+    filename: string;
+    size_bytes: number;
+    extracted_chars: number;
+    truncated: boolean;
+    text: string;
+}
+
+export async function uploadTrainerDocument(file: File): Promise<TrainerUploadResult> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_URL}/api/v1/trainer/upload`, {
+        method: "POST",
+        body: form,
+    });
+    if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail?.detail || `Trainer upload failed (${res.status})`);
+    }
+    return res.json();
+}
+
 export async function sendTrainerChat(question: string, history: string[] = [], token?: string) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);

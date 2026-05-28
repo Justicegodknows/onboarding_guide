@@ -1,13 +1,20 @@
+import ast
 import asyncio
 import datetime
 import hashlib
 import json
 import logging
+import math
+import operator
+import os
 import re
+import uuid
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import httpx
+import openpyxl
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -37,6 +44,7 @@ class TrainerSubAgent:
     ]
     SOURCE_REFRESH_MINUTES = 60
     GOOGLE_DRIVE_REFRESH_MINUTES = 30
+    _DOWNLOADS_DIR = Path("/tmp/trainer_downloads")
 
     def __init__(self) -> None:
         self._db_available = True
@@ -181,6 +189,58 @@ class TrainerSubAgent:
                     },
                 },
             },
+        {
+            "type": "function",
+            "function": {
+                "name": "compute",
+                "description": (
+                    "Safely evaluate a mathematical or numerical expression and return the result. "
+                    "Use when the user asks for a calculation, formula, unit conversion, or numeric estimate. "
+                    "Supports: +, -, *, /, //, %, **, abs, round, min, max, sum, pow, sqrt, log, "
+                    "log10, sin, cos, tan, floor, ceil, pi, e."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "expression": {
+                            "type": "string",
+                            "description": "A mathematical expression to evaluate, e.g. '(12 * 4.5) / 2' or 'sqrt(144)'.",
+                        },
+                    },
+                    "required": ["expression"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "generate_excel",
+                "description": (
+                    "Generate an Excel (.xlsx) file from structured tabular data and return a download URL. "
+                    "Use when the user requests a spreadsheet, table export, or data summary in Excel format."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Sheet title and first bold header row label.",
+                        },
+                        "headers": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Column header labels.",
+                        },
+                        "rows": {
+                            "type": "array",
+                            "items": {"type": "array"},
+                            "description": "Data rows; each element is an array of cell values (strings or numbers).",
+                        },
+                    },
+                    "required": ["title", "headers", "rows"],
+                },
+            },
+        },
         ]
 
     def _search_google_drive_knowledge(self, query: str, limit: int = 5) -> Dict[str, Any]:
@@ -831,6 +891,127 @@ class TrainerSubAgent:
 
         return {"feed_url": feed_url, "videos": entries}
 
+    # -----------------------------------------------------------------
+    # Task-execution tools
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def _compute(expression: str) -> Dict[str, Any]:
+        """Safely evaluate a math expression using ast — no eval(), no exec()."""
+        SAFE_OPS: Dict[type, Any] = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.FloorDiv: operator.floordiv,
+            ast.Mod: operator.mod,
+            ast.Pow: operator.pow,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+        SAFE_NAMES: Dict[str, Any] = {
+            "abs": abs, "round": round, "min": min, "max": max,
+            "sum": sum, "pow": pow,
+            "pi": math.pi, "e": math.e,
+            "sqrt": math.sqrt, "log": math.log, "log10": math.log10,
+            "sin": math.sin, "cos": math.cos, "tan": math.tan,
+            "floor": math.floor, "ceil": math.ceil,
+        }
+
+        def _eval(node: ast.expr) -> Any:
+            if isinstance(node, ast.Constant):
+                if isinstance(node.value, (int, float)):
+                    return node.value
+                raise ValueError(f"Unsupported constant: {node.value!r}")
+            if isinstance(node, ast.BinOp):
+                op = SAFE_OPS.get(type(node.op))
+                if op is None:
+                    raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
+                left, right = _eval(node.left), _eval(node.right)
+                if type(node.op) is ast.Pow and abs(right) > 1000:
+                    raise ValueError("Exponent too large (max 1000)")
+                return op(left, right)
+            if isinstance(node, ast.UnaryOp):
+                op = SAFE_OPS.get(type(node.op))
+                if op is None:
+                    raise ValueError(f"Unsupported unary op: {type(node.op).__name__}")
+                return op(_eval(node.operand))
+            if isinstance(node, ast.Call):
+                if not isinstance(node.func, ast.Name):
+                    raise ValueError("Unsupported call expression")
+                fn = SAFE_NAMES.get(node.func.id)
+                if fn is None:
+                    raise ValueError(f"Unknown function: {node.func.id!r}")
+                return fn(*[_eval(a) for a in node.args])
+            if isinstance(node, ast.Name):
+                val = SAFE_NAMES.get(node.id)
+                if val is None:
+                    raise ValueError(f"Unknown name: {node.id!r}")
+                return val
+            raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+
+        expression = expression.strip()
+        if len(expression) > 500:
+            return {"expression": expression, "error": "Expression too long (max 500 chars)"}
+        try:
+            tree = ast.parse(expression, mode="eval")
+            result = _eval(tree.body)
+            # Round floats that are very close to integers
+            if isinstance(result, float) and result == int(result):
+                result = int(result)
+            return {"expression": expression, "result": result}
+        except ZeroDivisionError:
+            return {"expression": expression, "error": "Division by zero"}
+        except Exception as exc:
+            return {"expression": expression, "error": str(exc)}
+
+    @classmethod
+    def _generate_excel(
+        cls,
+        title: str,
+        headers: List[str],
+        rows: List[List[Any]],
+    ) -> Dict[str, Any]:
+        """Build an .xlsx file from tabular data and return its download URL."""
+        try:
+            cls._DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+            filename = f"{uuid.uuid4().hex}.xlsx"
+            filepath = cls._DOWNLOADS_DIR / filename
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = (title or "Sheet1")[:31]  # Excel sheet name max 31 chars
+
+            # Bold title row
+            bold = openpyxl.styles.Font(bold=True)
+            ws.append([title])
+            ws.cell(row=1, column=1).font = bold
+
+            # Header row
+            ws.append(headers)
+            for col_idx in range(1, len(headers) + 1):
+                ws.cell(row=2, column=col_idx).font = bold
+
+            # Data rows
+            for row in rows:
+                ws.append(list(row))
+
+            # Auto-fit column widths (approximate)
+            for col in ws.columns:
+                max_len = max((len(str(cell.value or "")) for cell in col), default=10)
+                ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 60)
+
+            wb.save(filepath)
+
+            return {
+                "download_url": f"/api/v1/trainer/downloads/{filename}",
+                "filename": filename,
+                "rows_written": len(rows),
+                "columns": len(headers),
+            }
+        except Exception as exc:
+            return {"error": f"Excel generation failed: {exc}"}
+
     async def _run_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if name == "search_training_data":
             return self._search_training_data(
@@ -860,6 +1041,14 @@ class TrainerSubAgent:
             return await self._read_youtube_channel_feed(
                 channel=str(arguments.get("channel", "")),
                 limit=int(arguments.get("limit", 5)),
+            )
+        if name == "compute":
+            return self._compute(expression=str(arguments.get("expression", "")))
+        if name == "generate_excel":
+            return self._generate_excel(
+                title=str(arguments.get("title", "Report")),
+                headers=list(arguments.get("headers", [])),
+                rows=[list(r) for r in arguments.get("rows", [])],
             )
         return {"error": f"Unknown tool: {name}"}
 

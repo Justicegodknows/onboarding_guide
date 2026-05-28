@@ -38,3 +38,4 @@ pymupdf
 python-jose[cryptography]
 passlib[bcrypt]
 ollama
+openpyxl

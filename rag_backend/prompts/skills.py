@@ -113,11 +113,13 @@ def build_main_agent_skills() -> str:
 def build_trainer_agent_skills() -> str:
     """Skills block for the TrainerSubAgent (employee training Q&A).
 
-    Injects: Conversational Style · Uncertainty Protocol · Citation Discipline
+    Injects: Conversational Style · Uncertainty Protocol · Citation Discipline ·
+             Task Execution (compute, generate_excel, document upload handling)
     Excludes: RAG Retrieval (Trainer uses Drive snapshots, not ChromaDB directly).
     """
     return _assemble([
         ("Conversational Style", CONVERSATIONAL_STYLE_SKILL),
         ("Uncertainty Protocol", UNCERTAINTY_PROTOCOL_SKILL),
         ("Citation Discipline",  CITATION_DISCIPLINE_SKILL),
+        ("Task Execution",       TASK_EXECUTION_SKILL),
     ])

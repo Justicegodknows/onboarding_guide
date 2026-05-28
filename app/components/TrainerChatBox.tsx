@@ -1,10 +1,16 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { sendTrainerChat } from "../api/backend";
+import { sendTrainerChat, uploadTrainerDocument } from "../api/backend";
 
 interface Message {
     role: "user" | "trainer";
     text: string;
+}
+
+interface AttachedDoc {
+    filename: string;
+    text: string;
+    truncated: boolean;
 }
 
 interface TrainerChatBoxProps {
@@ -19,7 +25,10 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
     const [history, setHistory] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [attachedDoc, setAttachedDoc] = useState<AttachedDoc | null>(null);
+    const [uploadLoading, setUploadLoading] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (open) {
@@ -27,21 +36,49 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
         }
     }, [messages, open]);
 
+    async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadLoading(true);
+        setError(null);
+        try {
+            const result = await uploadTrainerDocument(file);
+            setAttachedDoc({ filename: result.filename, text: result.text, truncated: result.truncated });
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setUploadLoading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    }
+
     async function handleSend() {
         const question = input.trim();
         if (!question) return;
         setInput("");
         setError(null);
+
+        // Build the question shown in chat (always just the user's text)
         setMessages((prev) => [...prev, { role: "user", text: question }]);
+
+        // Build the actual payload: prepend document context if attached
+        let payload = question;
+        if (attachedDoc) {
+            payload =
+                `[Attached document: ${attachedDoc.filename}${attachedDoc.truncated ? " (truncated)" : ""}]\n\n` +
+                `${attachedDoc.text}\n\n---\n\n${question}`;
+            setAttachedDoc(null);
+        }
+
         setLoading(true);
         try {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('vaultmind_token') ?? undefined : undefined;
+            const token = typeof window !== "undefined" ? localStorage.getItem("vaultmind_token") ?? undefined : undefined;
             const res = await (onSend
-                ? onSend(question, history)
-                : sendTrainerChat(question, history, token));
+                ? onSend(payload, history)
+                : sendTrainerChat(payload, history, token));
             const answer: string = res.answer;
             setMessages((prev) => [...prev, { role: "trainer", text: answer }]);
-            setHistory((prev) => [...prev, question]);
+            setHistory((prev) => [...prev, payload]);
         } catch (e: any) {
             setError(e.message);
         } finally {
@@ -96,7 +133,38 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
                         <div ref={bottomRef} />
                     </div>
 
+                    {attachedDoc && (
+                        <div className="flex items-center gap-1 text-xs bg-green-50 border border-green-200 rounded-lg px-2 py-1">
+                            <span className="text-green-700 truncate flex-1">
+                                📄 {attachedDoc.filename}{attachedDoc.truncated ? " (truncated)" : ""}
+                            </span>
+                            <button
+                                className="text-green-500 hover:text-red-500 font-bold ml-1"
+                                onClick={() => setAttachedDoc(null)}
+                                title="Remove attachment"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )}
+
                     <div className="flex gap-1">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.docx,.txt,.md,.csv"
+                            onChange={handleFileChange}
+                            disabled={loading || uploadLoading}
+                        />
+                        <button
+                            className="px-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={loading || uploadLoading}
+                            title="Attach a document (PDF, DOCX, TXT, MD, CSV)"
+                        >
+                            {uploadLoading ? "…" : "📎"}
+                        </button>
                         <input
                             className="flex-1 text-xs p-1.5 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:border-blue-400"
                             type="text"

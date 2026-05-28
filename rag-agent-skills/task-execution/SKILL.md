@@ -1,6 +1,6 @@
 ---
 name: task-execution
-description: Execute backend tasks in the VaultMind system — ingestion, document processing, API calls, or service interactions — without breaking the running system. Use when the agent needs to trigger ingestion, run a scraper, interact with RAGService, call the ingest API, manage knowledge sources, or orchestrate multi-step backend operations. Triggers on phrases like "ingest", "index", "scrape", "run the pipeline", "trigger ingestion", "add documents to", "update the knowledge base", or "process files".
+description: Execute backend tasks in the VaultMind system — ingestion, document processing, computation, spreadsheet generation, or API calls — without breaking the running system. Use when the agent needs to trigger ingestion, run a scraper, interact with RAGService, call the ingest API, manage knowledge sources, orchestrate multi-step backend operations, evaluate calculations, generate Excel files, or process uploaded documents.
 ---
 
 You are executing a task inside the VaultMind backend. The system is live and on-premises. Be methodical, minimal, and safe. Verify before acting; report clearly after.
@@ -13,8 +13,12 @@ You are executing a task inside the VaultMind backend. The system is live and on
 │   ├── main.py              — FastAPI app, all routers registered here
 │   ├── core/config.py       — Settings loaded from rag_backend/.env
 │   ├── routers/ingest.py    — POST /api/v1/ingest/?source=...  (unprotected)
+│   ├── routers/trainer.py   — POST /api/v1/trainer/  (Q&A)
+│   │                          POST /api/v1/trainer/upload  (document → text)
+│   │                          GET  /api/v1/trainer/downloads/{filename}
 │   └── services/
 │       ├── rag_service.py          — RAGService: embed + store + retrieve
+│       ├── trainer_agent.py        — TrainerSubAgent: tools + answer()
 │       ├── ingest_chunks.py        — Orchestrates all ingestion paths
 │       ├── youtube_knowledge.py    — yt-dlp (primary) + RSS (fallback)
 │       ├── google_drive_knowledge.py
@@ -22,6 +26,109 @@ You are executing a task inside the VaultMind backend. The system is live and on
 │       └── chunk_documents.py      — chunk_text(text, chunk_size)
 └── chroma_db/               — DO NOT touch binary files directly
 ```
+
+────────────────────────────────────────
+
+## Computation (`compute` tool)
+
+Use the `compute` tool whenever the user asks for a numerical result — calculation, formula evaluation, unit conversion, percentage, or estimate.
+
+**Trigger phrases**: "calculate", "how much is", "what is X times Y", "convert", "formula", "result of".
+
+**What it supports**:
+| Category | Supported |
+|---|---|
+| Arithmetic | `+`, `-`, `*`, `/`, `//`, `%`, `**` |
+| Functions | `abs`, `round`, `min`, `max`, `sum`, `pow`, `sqrt`, `log`, `log10`, `sin`, `cos`, `tan`, `floor`, `ceil` |
+| Constants | `pi`, `e` |
+
+**What it does NOT support**: string ops, imports, loops, conditionals, variable assignment, or any Python statement.
+
+**Usage pattern**:
+```
+compute(expression="(12.5 * 4) / 2")
+→ { "expression": "(12.5 * 4) / 2", "result": 25 }
+
+compute(expression="sqrt(144) + pi")
+→ { "expression": "sqrt(144) + pi", "result": 15.14159... }
+```
+
+**Safety rules**:
+- Never pass user-supplied strings directly without sanitizing — always pass the literal expression.
+- Exponents are capped at 1000 to prevent runaway computation.
+- If `error` key appears in the result, report it to the user and do not retry with a different expression without clarification.
+
+**Response format**:
+> The result of `{expression}` is **{result}**.
+
+────────────────────────────────────────
+
+## Excel sheet generation (`generate_excel` tool)
+
+Use the `generate_excel` tool when the user requests a spreadsheet, data export, or structured table in Excel format.
+
+**Trigger phrases**: "create an Excel file", "generate a spreadsheet", "export to Excel", "download as .xlsx", "make a table I can open in Excel".
+
+**Tool signature**:
+```
+generate_excel(
+    title="Report Title",
+    headers=["Column A", "Column B", "Column C"],
+    rows=[
+        ["row1a", "row1b", 42],
+        ["row2a", "row2b", 7.5],
+    ]
+)
+```
+
+**What the tool returns**:
+```json
+{
+    "download_url": "/api/v1/trainer/downloads/<uuid>.xlsx",
+    "filename": "<uuid>.xlsx",
+    "rows_written": 2,
+    "columns": 3
+}
+```
+
+**Response format** — always give the user a clickable link:
+> I've generated your Excel file. [Download {title}.xlsx]({download_url})
+> It contains {rows_written} rows and {columns} columns.
+
+**Rules**:
+- Sheet title is trimmed to 31 characters (Excel limit) automatically.
+- Files are ephemeral (stored in `/tmp/trainer_downloads/`). Warn the user to download promptly; they are not persisted across container restarts.
+- If `error` key appears in the result, report it and ask the user whether to retry or proceed differently.
+- Do not fabricate data — only create spreadsheets from data explicitly provided or retrieved via other tools.
+
+────────────────────────────────────────
+
+## Document processing via upload button
+
+When a user uploads a document via the Trainer chat interface, the frontend:
+1. POSTs the file to `POST /api/v1/trainer/upload`
+2. Receives back the extracted text (max 12 000 chars; truncated flag if larger)
+3. Prepends it to the next question sent to the Trainer:
+
+```
+[Attached document: filename.pdf (truncated)]
+
+<extracted text>
+
+---
+
+<user question>
+```
+
+**As the Trainer agent, when you receive a message with this format**:
+- Treat the attached document text as primary evidence for answering the question.
+- If the document text is truncated, say so explicitly and note that only the first 12 000 characters were provided.
+- Do NOT reference the document as a ChromaDB source — it was not embedded; it is session-scoped context only.
+- Citation format: `[Uploaded: filename.pdf]` — do not invent page numbers.
+
+**Supported upload formats**: PDF, DOCX, TXT, MD, CSV (max 20 MB).
+
+────────────────────────────────────────
 
 ## Ingestion task checklist
 
@@ -40,16 +147,9 @@ Run through this before triggering any ingestion:
 3. **Trigger via API** (preferred — avoids import side effects):
 
 ```bash
-# YouTube channel ingestion
 curl -X POST "http://localhost:8000/api/v1/ingest/?source=youtube"
-
-# Google Drive
 curl -X POST "http://localhost:8000/api/v1/ingest/?source=google_drive"
-
-# Local EUZ docs folder
 curl -X POST "http://localhost:8000/api/v1/ingest/?source=local_folder"
-
-# Override channel for one-off ingestion
 curl -X POST "http://localhost:8000/api/v1/ingest/?source=youtube&youtube_channel=https://www.youtube.com/@handle/videos"
 ```
 
@@ -64,19 +164,14 @@ result = ingest_chunks(source="youtube", allow_local_fallback=False)
 print(result)
 ```
 
-- Set `allow_local_fallback=False` when you want hard failures instead of silent fallback to `help/chunks.json`.
-- Always print or log the result dict — it contains `chunk_count`, `ingested`, and `meta`.
+Set `allow_local_fallback=False` when you want hard failures instead of silent fallback to `help/chunks.json`.
 
 ## RAGService usage rules
 
 ```python
 from app.services.rag_service import RAGService
 rag = RAGService()
-
-# Ingest a single chunk dict
 rag.ingest({"source": "...", "chunk_id": "...", "text": "...", "topic": "...", "tags": "..."})
-
-# Retrieve (always use this — never access chroma_db directly)
 results = rag.retrieve(query="...", top_k=5)
 ```
 
