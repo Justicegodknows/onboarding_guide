@@ -1,9 +1,11 @@
-// Option A: Direct Cloudflare tunnel calls (recommended)
-// Frontend calls api.euzs.life via Cloudflare tunnel → routes to DGX backend:8000
-// This avoids proxy overhead and mixed-content issues
+/**
+ * API base URL strategy:
+ * - Server-side (SSR/route handlers/tests): call backend directly.
+ * - Client-side (browser): use same-origin Next proxy to avoid CORS failures.
+ */
 export const API_URL = typeof window === 'undefined'
-    ? (process.env.DGX_BACKEND_URL || 'https://api.euzs.life')  // Server-side: direct API
-    : (process.env.NEXT_PUBLIC_API_URL || 'https://api.euzs.life');  // Client-side: direct API
+    ? (process.env.DGX_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.euzs.life')
+    : '/api/proxy';
 
 if (!API_URL) {
     throw new Error(
