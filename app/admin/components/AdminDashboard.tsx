@@ -38,13 +38,20 @@ export default function AdminDashboard() {
                 const token = localStorage.getItem('token');
                 if (!token) throw new Error('No auth token');
 
+                // Create abort controller with 15 second timeout per request
+                const createFetch = (endpoint: string) => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                    return fetch(endpoint, {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        signal: controller.signal,
+                    }).finally(() => clearTimeout(timeoutId));
+                };
+
                 const [analyticsRes, statusRes] = await Promise.all([
-                    fetch('/api/backend?endpoint=/api/v1/admin/analytics', {
-                        headers: { 'Authorization': `Bearer ${token}` },
-                    }),
-                    fetch('/api/backend?endpoint=/api/v1/admin/status', {
-                        headers: { 'Authorization': `Bearer ${token}` },
-                    }),
+                    createFetch('/api/backend?endpoint=/api/v1/admin/analytics'),
+                    createFetch('/api/backend?endpoint=/api/v1/admin/status'),
                 ]);
 
                 if (!analyticsRes.ok || !statusRes.ok) {
@@ -57,7 +64,9 @@ export default function AdminDashboard() {
                 setAnalytics(analyticsData);
                 setSystemStatus(statusData);
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'An error occurred');
+                const errorMsg = err instanceof Error ? err.message : 'An error occurred';
+                console.error('Dashboard data fetch error:', errorMsg);
+                setError(errorMsg);
             } finally {
                 setLoading(false);
             }

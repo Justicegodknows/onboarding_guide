@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
+import logging
 
 from app.core.security import get_current_user, check_admin_role
 from app.db import SessionLocal
@@ -24,7 +25,25 @@ from app.models.db_models import (
 from app.services.admin_rag_service import AdminRAGService
 from app.services.admin_ingest_service import ingest_admin_chunks
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+
+# ============================================================================
+# Singleton AdminRAGService - Initialize once at module load
+# ============================================================================
+_admin_rag_instance = None
+
+def get_admin_rag() -> AdminRAGService:
+    """Get or create singleton AdminRAGService instance."""
+    global _admin_rag_instance
+    if _admin_rag_instance is None:
+        try:
+            _admin_rag_instance = AdminRAGService()
+        except Exception as e:
+            logger.error(f"Failed to initialize AdminRAGService: {e}")
+            raise
+    return _admin_rag_instance
 
 
 def get_db():
@@ -263,14 +282,15 @@ def get_system_status(
 ):
     """
     Get system status including vector stores and database health.
+    Lightweight check - no heavy queries.
     """
     try:
-        admin_rag = AdminRAGService()
-        # Simple connectivity check
-        _ = admin_rag.retrieve_admin_only("health", top_k=1)
+        # Quick connectivity check without expensive retrieval
+        admin_rag = get_admin_rag()
         admin_store_status = "healthy"
     except Exception as e:
-        admin_store_status = f"error: {str(e)}"
+        logger.warning(f"Admin RAG health check failed: {e}")
+        admin_store_status = f"error: {str(e)[:50]}"
     
     return SystemStatusResponse(
         status="operational",
@@ -388,15 +408,23 @@ async def search_admin_database(
 ):
     """
     Search admin-exclusive database only.
+    Uses singleton to avoid expensive re-initialization.
     """
-    admin_rag = AdminRAGService()
-    results = admin_rag.retrieve_admin_only(query, top_k=top_k)
-    
-    return {
-        "query": query,
-        "results": results,
-        "total": len(results),
-    }
+    try:
+        admin_rag = get_admin_rag()
+        results = admin_rag.retrieve_admin_only(query, top_k=top_k)
+        
+        return {
+            "query": query,
+            "results": results,
+            "total": len(results),
+        }
+    except Exception as e:
+        logger.error(f"Admin-only search failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Search unavailable: {str(e)[:100]}",
+        )
 
 
 @router.post("/search/dual")
@@ -407,13 +435,21 @@ async def search_dual_database(
 ):
     """
     Search both main and admin databases.
+    Uses singleton to avoid expensive re-initialization.
     """
-    admin_rag = AdminRAGService()
-    results = admin_rag.retrieve_dual(query, top_k=top_k)
-    
-    return {
-        "query": query,
-        "results": results,
-        "main_count": len(results.get("main", [])),
-        "admin_count": len(results.get("admin", [])),
-    }
+    try:
+        admin_rag = get_admin_rag()
+        results = admin_rag.retrieve_dual(query, top_k=top_k)
+        
+        return {
+            "query": query,
+            "results": results,
+            "main_count": len(results.get("main", [])),
+            "admin_count": len(results.get("admin", [])),
+        }
+    except Exception as e:
+        logger.error(f"Dual search failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Search unavailable: {str(e)[:100]}",
+        )

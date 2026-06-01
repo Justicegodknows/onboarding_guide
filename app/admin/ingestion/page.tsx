@@ -22,34 +22,52 @@ export default function IngestionPage() {
                 payload.folder_path = folderPath;
             }
 
-            const response = await fetch('/api/backend?endpoint=/api/v1/admin/ingest', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
+            // Create abort controller with 60 second timeout for ingestion (longer than searches)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessage({
-                    type: 'success',
-                    text: `Ingestion successful! ${data.ingested} chunks ingested.`,
+            try {
+                const response = await fetch('/api/backend?endpoint=/api/v1/admin/ingest', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal,
                 });
-                setFolderPath('');
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    setMessage({
+                        type: 'success',
+                        text: `Ingestion successful! ${data.ingested} chunks ingested.`,
+                    });
+                    setFolderPath('');
+                } else {
+                    setMessage({
+                        type: 'error',
+                        text: data.detail || 'Ingestion failed',
+                    });
+                }
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'An error occurred';
+            if (errorMsg.includes('abort')) {
+                setMessage({
+                    type: 'error',
+                    text: 'Ingestion timed out. Please try again.',
+                });
             } else {
                 setMessage({
                     type: 'error',
-                    text: data.detail || 'Ingestion failed',
+                    text: errorMsg,
                 });
             }
-        } catch (error) {
-            setMessage({
-                type: 'error',
-                text: error instanceof Error ? error.message : 'An error occurred',
-            });
+            console.error('Ingestion error:', error);
         } finally {
             setIsLoading(false);
         }

@@ -29,18 +29,33 @@ export default function SearchPage() {
                 ? '/api/v1/admin/search/admin-only'
                 : '/api/v1/admin/search/dual';
 
-            const response = await fetch(
-                `/api/backend?endpoint=${endpoint}&query=${encodeURIComponent(query)}&top_k=10`,
-                {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                }
-            );
+            // Create abort controller with 30 second timeout for searches
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-            if (!response.ok) throw new Error('Search failed');
-            const data = await response.json();
-            setResults(data.results);
+            try {
+                const response = await fetch(
+                    `/api/backend?endpoint=${endpoint}&query=${encodeURIComponent(query)}&top_k=10`,
+                    {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        signal: controller.signal,
+                    }
+                );
+
+                if (!response.ok) throw new Error('Search failed');
+                const data = await response.json();
+                setResults(data.results);
+            } finally {
+                clearTimeout(timeoutId);
+            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Search error');
+            const errorMsg = err instanceof Error ? err.message : 'Search error';
+            if (errorMsg.includes('abort')) {
+                setError('Search timed out. Please try a simpler query.');
+            } else {
+                setError(errorMsg);
+            }
+            console.error('Search error:', err);
         } finally {
             setLoading(false);
         }
