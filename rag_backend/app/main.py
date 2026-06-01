@@ -8,8 +8,8 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.core.config import settings
 from app.db import Base, SessionLocal, engine
 from app.models import db_models  # noqa: F401
-from app.models.db_models import AuthUser
-from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments
+from app.models.db_models import AuthUser, AdminUser
+from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments, admin
 from app.routers.integrations import router as integrations_router
 from app.core.security import get_password_hash
 
@@ -24,27 +24,50 @@ async def lifespan(app: FastAPI):
     try:
         existing_admin = db.query(AuthUser).first()
         if not existing_admin:
-            db.add(AuthUser(
+            admin1 = AuthUser(
                 email="euzadmin",
                 password_hash=get_password_hash("admin"),
                 role="ADMIN",
                 dept="Administration",
                 display_name="EUZ Administrator",
-            ))
-            db.add(AuthUser(
+            )
+            admin2 = AuthUser(
                 email="admin@vaultmind.local",
                 password_hash=get_password_hash("admin123"),
                 role="ADMIN",
                 dept="IT",
                 display_name="VaultMind Admin",
-            ))
-            db.add(AuthUser(
+            )
+            user1 = AuthUser(
                 email="user@vaultmind.local",
                 password_hash=get_password_hash("user123"),
                 role="USER",
                 dept="Finance",
                 display_name="Finance User",
-            ))
+            )
+            db.add(admin1)
+            db.add(admin2)
+            db.add(user1)
+            db.commit()
+            
+            # Create AdminUser entries for admin accounts
+            db.refresh(admin1)
+            db.refresh(admin2)
+            
+            admin_user1 = AdminUser(
+                auth_user_id=admin1.id,
+                admin_level="super",
+                permissions='["ingest", "manage_users", "view_analytics", "system_admin"]',
+                is_active=True,
+            )
+            admin_user2 = AdminUser(
+                auth_user_id=admin2.id,
+                admin_level="standard",
+                permissions='["ingest", "view_analytics"]',
+                is_active=True,
+            )
+            db.add(admin_user1)
+            db.add(admin_user2)
             db.commit()
     finally:
         db.close()
@@ -126,4 +149,5 @@ app.include_router(onboarding.router)
 app.include_router(ingest.router)
 app.include_router(trainer.router)
 app.include_router(departments.router)
+app.include_router(admin.router)
 app.include_router(integrations_router)

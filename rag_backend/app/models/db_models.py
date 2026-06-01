@@ -84,3 +84,44 @@ class Integration(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+class AdminDocument(Base):
+    """Tracks admin-ingested documents in exclusive admin database."""
+    __tablename__ = "admin_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    uploaded_by = Column(String, nullable=False, index=True)  # email of admin user
+    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    source_type = Column(String, nullable=False)  # file, url, text, etc.
+    document_metadata = Column("metadata", Text, nullable=True)
+    chunk_count = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False, default="ingested")  # ingested, processing, error
+
+
+class AdminIngestLog(Base):
+    """Audit trail for admin data ingestion operations."""
+    __tablename__ = "admin_ingest_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    admin_email = Column(String, nullable=False, index=True)
+    ingest_type = Column(String, nullable=False)  # folder, direct, local
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    total_chunks = Column(Integer, nullable=False, default=0)
+    ingested_chunks = Column(Integer, nullable=False, default=0)
+    error_count = Column(Integer, nullable=False, default=0)
+    status = Column(String, nullable=False, default="success")
+    error_message = Column(Text, nullable=True)
+    metadata = Column(Text, nullable=True)
+
+
+class AdminUser(Base):
+    """Extended admin-specific user data and permissions."""
+    __tablename__ = "admin_users"
+    id = Column(Integer, primary_key=True, index=True)
+    auth_user_id = Column(Integer, ForeignKey("auth_users.id"), nullable=False, unique=True)
+    admin_level = Column(String, nullable=False, default="standard")  # standard, super
+    permissions = Column(Text, nullable=False, default="[]")  # JSON array of permission strings
+    last_login = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
