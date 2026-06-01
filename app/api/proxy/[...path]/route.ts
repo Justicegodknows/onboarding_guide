@@ -26,7 +26,7 @@ async function handler(req: NextRequest) {
         const response = await fetch(targetUrl, {
             method: req.method,
             headers: headers,
-            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
+            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.arrayBuffer() : undefined,
         });
 
         // Read the response body

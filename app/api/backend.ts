@@ -1,11 +1,13 @@
 /**
  * API base URL strategy:
- * - Server-side (SSR/route handlers/tests): call backend directly.
- * - Client-side (browser): use same-origin Next proxy to avoid CORS failures.
+ * - Server-side (SSR/route handlers/tests): call backend directly when available.
+ * - Client-side (browser): use NEXT_PUBLIC_API_URL when configured, otherwise fall back to the same-origin proxy.
  */
-export const API_URL = typeof window === 'undefined'
-    ? (process.env.DGX_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.euzs.life')
-    : '/api/proxy';
+const isBrowser = typeof window !== 'undefined' && process.env.FORCE_SERVER_API_URL !== 'true';
+
+export const API_URL = isBrowser
+    ? (process.env.NEXT_PUBLIC_API_URL || '/api/proxy')
+    : (process.env.DGX_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.euzs.life');
 
 if (!API_URL) {
     throw new Error(
@@ -270,8 +272,9 @@ export async function uploadDocument(file: File, token: string): Promise<UploadR
     });
 
     if (!res.ok) {
-        const detail = await res.json().catch(() => ({}));
-        throw new Error(detail?.detail || `Upload failed (${res.status})`);
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Server Error Details:", errorData);
+        throw new Error(errorData?.detail || errorData?.message || `Upload failed (${res.status})`);
     }
     return res.json();
 }

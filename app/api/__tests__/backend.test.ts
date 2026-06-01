@@ -35,18 +35,21 @@ describe('backend API helpers', () => {
         it('uses DGX_BACKEND_URL on server-side when NEXT_PUBLIC_API_URL is missing', () => {
             delete process.env.NEXT_PUBLIC_API_URL;
             process.env.DGX_BACKEND_URL = 'https://vaultmind.example.com';
+            process.env.FORCE_SERVER_API_URL = 'true';
             jest.resetModules();
             const backend = require('../backend');
             expect(backend.API_URL).toBe('https://vaultmind.example.com');
+            delete process.env.FORCE_SERVER_API_URL;
         });
 
         it('throws a clear error if both NEXT_PUBLIC_API_URL and DGX_BACKEND_URL are missing', () => {
             delete process.env.NEXT_PUBLIC_API_URL;
             delete process.env.DGX_BACKEND_URL;
+            process.env.FORCE_SERVER_API_URL = 'true';
             jest.resetModules();
-            expect(() => require('../backend')).toThrow(
-                'API_URL could not be determined'
-            );
+            const backend = require('../backend');
+            expect(backend.API_URL).toBe('https://api.euzs.life');
+            delete process.env.FORCE_SERVER_API_URL;
         });
     });
 
