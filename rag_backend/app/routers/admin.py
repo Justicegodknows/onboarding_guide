@@ -33,17 +33,26 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 # Singleton AdminRAGService - Initialize once at module load
 # ============================================================================
 _admin_rag_instance = None
+_admin_rag_initialized = False
 
 def get_admin_rag() -> AdminRAGService:
     """Get or create singleton AdminRAGService instance."""
-    global _admin_rag_instance
+    global _admin_rag_instance, _admin_rag_initialized
     if _admin_rag_instance is None:
         try:
+            logger.info("Initializing AdminRAGService (first use)...")
             _admin_rag_instance = AdminRAGService()
+            _admin_rag_initialized = True
+            logger.info("✅ AdminRAGService initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize AdminRAGService: {e}")
+            _admin_rag_initialized = False
             raise
     return _admin_rag_instance
+
+def is_admin_rag_ready() -> bool:
+    """Check if AdminRAGService is ready without initializing it."""
+    return _admin_rag_instance is not None
 
 
 def get_db():
@@ -174,7 +183,7 @@ def ingest_admin_data(
             ingested_chunks=result.get("ingested", 0),
             error_count=result.get("errors_or_duplicates", 0),
             status=result.get("status", "unknown"),
-            metadata=str(result.get("meta", {})),
+            ingestion_metadata=str(result.get("meta", {})),
         )
         db.add(log)
         db.commit()
@@ -234,6 +243,18 @@ def list_admin_documents(
 # ============================================================================
 # Analytics & Monitoring Endpoints
 # ============================================================================
+
+@router.get("/health")
+def admin_health():
+    """
+    Simple health check endpoint that doesn't require auth or initialized services.
+    Returns immediately.
+    """
+    return {
+        "status": "ok",
+        "admin_service_ready": is_admin_rag_ready(),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 @router.get("/analytics", response_model=AdminAnalyticsResponse)
 def get_admin_analytics(

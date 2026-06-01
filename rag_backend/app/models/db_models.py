@@ -111,7 +111,7 @@ class AdminIngestLog(Base):
     error_count = Column(Integer, nullable=False, default=0)
     status = Column(String, nullable=False, default="success")
     error_message = Column(Text, nullable=True)
-    metadata = Column(Text, nullable=True)
+    ingestion_metadata = Column(Text, nullable=True)  # Renamed from 'metadata' (reserved)
 
 
 class AdminUser(Base):

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import json
+import logging
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,8 @@ from app.models.db_models import AuthUser, AdminUser
 from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments, admin
 from app.routers.integrations import router as integrations_router
 from app.core.security import get_password_hash
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -71,6 +74,25 @@ async def lifespan(app: FastAPI):
             db.commit()
     finally:
         db.close()
+
+    # Pre-initialize AdminRAGService singleton in background to avoid timeout on first request
+    # This happens after app is ready but doesn't block startup
+    try:
+        import threading
+        logger.info("Starting background AdminRAGService initialization...")
+        def init_admin_rag():
+            try:
+                logger.info("Pre-initializing AdminRAGService singleton...")
+                from app.routers.admin import get_admin_rag
+                get_admin_rag()  # Blocks once in background thread, not user request thread
+                logger.info("✅ AdminRAGService singleton initialized successfully")
+            except Exception as e:
+                logger.warning(f"AdminRAGService initialization failed: {e}")
+        
+        thread = threading.Thread(target=init_admin_rag, daemon=True)
+        thread.start()
+    except Exception as e:
+        logger.warning(f"Failed to start background init thread: {e}")
 
     yield
 
