@@ -153,7 +153,6 @@ export default function TrainerChatBox({ title, onSend }: TrainerChatBoxProps) {
                             ref={fileInputRef}
                             type="file"
                             className="hidden"
-                            accept=".pdf,.docx,.txt,.md,.csv"
                             onChange={handleFileChange}
                             disabled={loading || uploadLoading}
                         />

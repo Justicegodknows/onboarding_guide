@@ -10,14 +10,7 @@ import {
     type UploadResult,
 } from "../api/backend";
 
-const ALLOWED_TYPES = [
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "text/plain",
-    "text/markdown",
-    "text/csv",
-];
-const ALLOWED_EXT_LABEL = ".pdf, .docx, .txt, .md, .csv";
+const ALLOWED_EXT_LABEL = "All file types";
 
 interface UploadEntry {
     file: File;
@@ -57,7 +50,7 @@ export default function DocumentUploadPanel({ token, isAdmin = false }: Document
 
     const enqueueFiles = (files: FileList | File[]) => {
         const arr = Array.from(files);
-        const valid = arr.filter((f) => ALLOWED_TYPES.includes(f.type) || f.name.match(/\.(pdf|docx|txt|md|csv)$/i));
+        const valid = arr; // Accept all file types
         if (valid.length === 0) return;
         setQueue((prev) => [
             ...prev,
@@ -129,7 +122,6 @@ export default function DocumentUploadPanel({ token, isAdmin = false }: Document
                     ref={inputRef}
                     type="file"
                     multiple
-                    accept=".pdf,.docx,.txt,.md,.csv"
                     className="sr-only"
                     title="Upload documents"
                     aria-label="Upload documents"
@@ -141,7 +133,7 @@ export default function DocumentUploadPanel({ token, isAdmin = false }: Document
                 <p className="text-sm font-semibold text-gray-700">
                     Drag &amp; drop files here, or <span className="text-blue-600 underline">browse</span>
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Supported: {ALLOWED_EXT_LABEL} · Max 50 MB</p>
+                <p className="text-xs text-gray-400 mt-1">Supported: All file types · Max 50 MB</p>
             </div>
 
             {/* Upload Queue */}
