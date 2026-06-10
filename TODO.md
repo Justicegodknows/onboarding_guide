@@ -1,9 +1,24 @@
-# TODO
+# TODO - Gmail policy + efficient tool calling (sandbox: exist)
 
-- [ ] Locate and fix all deprecated Zustand default imports (`import create from 'zustand'` → `import { create } from 'zustand'`).
-- [x] Update frontend API base URL logic to use same-origin Next proxy on client (`/api/proxy`) to eliminate browser CORS failures.
-- [x] Keep server-side API calls direct to backend URL.
-- [x] Verify proxy route supports department chat path forwarding.
-- [ ] Run checks:
-  - [ ] Search for remaining deprecated Zustand import patterns.
-  - [x] Run tests/build sanity check relevant to changed files.
+- [x] Inspect schema patterns in `/sandbox/.nemoclaw/blueprints/0.1.0/blueprint.yaml` around `components.policy.additions` to match exact field names for host/method/protocol/enforcement/binaries.
+- [ ] Edit `/sandbox/.nemoclaw/blueprints/0.1.0/blueprint.yaml` to add strict `gmail` policy addition with only:
+  - `gmail.googleapis.com:443`
+  - `oauth2.googleapis.com:443`
+  - `accounts.google.com:443`
+  - REST protocol + GET/POST only + enforcement enabled.
+- [ ] Ensure binaries required for Gmail API flow are allowed in the policy addition:
+  - `python3` (and explicit paths where applicable)
+  - `/sandbox/.venv/bin/python3` if present
+  - `curl` only if required.
+- [ ] Edit `/sandbox/.openclaw/workspace/AGENTS.md` to add an “Efficient tool calling” section:
+  - single `exec` call per operation with `bash -lc`
+  - `set -euo pipefail` for multi-command scripts
+  - write artifacts via stdin/heredoc piping
+  - prefer allowlisted scripts: `/sandbox/run_email_job.sh`, `/sandbox/run_bulk_resume.sh`, `/sandbox/read_log.sh`.
+- [ ] Regenerate policy context (`nemoclaw exist policy-explain --write`) and verify gmail hosts appear.
+- [ ] Run non-secret connectivity checks from sandbox for:
+  - `https://gmail.googleapis.com/`
+  - `https://oauth2.googleapis.com/`
+  - `https://accounts.google.com/`
+- [ ] Check for `/sandbox/run_email_job.sh` presence and perform a non-sending reachability invocation if supported.
+- [ ] Summarize exact verification commands and outputs.

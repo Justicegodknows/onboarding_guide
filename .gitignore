@@ -76,3 +76,9 @@ next-env.d.ts
 *.aac
 *.raw
 *.RAW
+# Local vector DB artifacts (do not commit)
+rag_backend/chroma_db/
+rag_backend/chroma_db_admin/
+
+# Local skill/workbench artifacts (do not commit)
+.blackbox/
