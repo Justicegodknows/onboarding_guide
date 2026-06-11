@@ -8,6 +8,7 @@ interface ChatBoxProps {
     onSend?: (question: string, history: string[]) => Promise<{ answer: string }>;
     onClose?: () => void;
     fullPage?: boolean;
+    agentMode?: boolean;
 }
 
 interface Message {
@@ -16,13 +17,14 @@ interface Message {
     sources?: any[];
 }
 
-export default function ChatBox({ department, title, onSend, onClose, fullPage = false }: ChatBoxProps) {
+import Link from "next/link";
+
+export default function ChatBox({ department, title, onSend, onClose, fullPage = false, agentMode = false }: ChatBoxProps) {
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [history, setHistory] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [nemoclawMode, setNemoclawMode] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -47,7 +49,7 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
             const res = await (onSend
                 ? onSend(questionToSend, history)
                 : (
-                    nemoclawMode
+                    agentMode
                         ? sendAgentChat(questionToSend, null, token)
                         : sendChat(questionToSend, history, token)
                 ));
@@ -72,15 +74,15 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
                     <span className="text-2xl">🔒</span>
                     <h2 className="text-xl font-bold text-gray-900">{title ?? "Chat with RAG Agent"}</h2>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-gray-600 mr-2">
-                    <input
-                        type="checkbox"
-                        checked={nemoclawMode}
-                        onChange={(e) => setNemoclawMode(e.target.checked)}
-                        className="h-4 w-4"
-                    />
-                    Nemoclaw mode
-                </label>
+                {!agentMode && (
+                    <Link
+                        href="/nemoclaw"
+                        className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 mr-2 px-3 py-1 border border-blue-600 rounded-full hover:bg-blue-50 transition-colors"
+                    >
+                        <span>⚖️</span>
+                        Nemoclaw Mode
+                    </Link>
+                )}
                 {onClose && (
                     <button
                         onClick={onClose}
