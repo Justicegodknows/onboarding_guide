@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     NVIDIA_EMBED_INPUT_TYPE_QUERY: str = "query"
     NVIDIA_EMBED_TRUNCATE: str = "NONE"
 
+    # Nemoclaw sandbox agent settings
+    NEMOCLAW_SANDBOX_NAME: str = "exist"
+    NEMOCLAW_TIMEOUT_SECONDS: int = 25
+
     # Google Drive-backed knowledge base (primary source for ingestion)
     GOOGLE_DRIVE_FOLDER_URL: str = (
         "https://drive.google.com/drive/folders/"

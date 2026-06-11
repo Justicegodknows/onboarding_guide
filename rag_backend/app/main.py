@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.db import Base, SessionLocal, engine
 from app.models import db_models  # noqa: F401
 from app.models.db_models import AuthUser, AdminUser
-from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments, admin
+from app.routers import auth, health, chat, documents, onboarding, ingest, trainer, departments, admin, agent
 from app.routers.integrations import router as integrations_router
 from app.core.security import get_password_hash
 
@@ -172,4 +172,5 @@ app.include_router(ingest.router)
 app.include_router(trainer.router)
 app.include_router(departments.router)
 app.include_router(admin.router)
+app.include_router(agent.router)
 app.include_router(integrations_router)

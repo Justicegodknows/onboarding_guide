@@ -12,6 +12,22 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
 
+
+class AgentChatRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+
+class AgentChatSource(BaseModel):
+    title: str
+    source: str
+    chunk_id: Optional[str] = None
+
+
+class AgentChatResponse(BaseModel):
+    answer: str
+    sources: List[AgentChatSource]
+
 class DocumentUploadRequest(BaseModel):
     filename: str
     content: str

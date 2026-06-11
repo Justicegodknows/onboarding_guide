@@ -52,6 +52,39 @@ export async function sendChat(question: string, history: string[] = [], token?:
     return res.json();
 }
 
+export interface AgentChatSource {
+    title: string;
+    source: string;
+    chunk_id: string | null;
+}
+
+export interface AgentChatResponse {
+    answer: string;
+    sources: AgentChatSource[];
+}
+
+export async function sendAgentChat(message: string, conversation_id: string | null = null, token?: string): Promise<AgentChatResponse> {
+    const res = await fetch(`${API_URL}/agent/chat`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message, conversation_id }),
+    });
+    if (!res.ok) {
+        let detail = '';
+        try {
+            const data = await res.json();
+            detail = data?.detail || data?.message || JSON.stringify(data);
+        } catch {
+            detail = await res.text();
+        }
+        throw new Error(`Agent chat failed (${res.status}): ${detail || 'Unknown error'}`);
+    }
+    return res.json();
+}
+
 export interface TrainerUploadResult {
     filename: string;
     size_bytes: number;

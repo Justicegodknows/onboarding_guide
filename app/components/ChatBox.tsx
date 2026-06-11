@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { sendChat } from "../api/backend";
+import { sendAgentChat, sendChat } from "../api/backend";
 
 interface ChatBoxProps {
     department?: string;
@@ -22,6 +22,7 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
     const [history, setHistory] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [nemoclawMode, setNemoclawMode] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -45,7 +46,11 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
             const token = typeof window !== 'undefined' ? localStorage.getItem('vaultmind_token') ?? undefined : undefined;
             const res = await (onSend
                 ? onSend(questionToSend, history)
-                : sendChat(questionToSend, history, token));
+                : (
+                    nemoclawMode
+                        ? sendAgentChat(questionToSend, null, token)
+                        : sendChat(questionToSend, history, token)
+                ));
             setMessages((prev) => [...prev, { role: "assistant", content: res.answer, sources: res.sources }]);
             setHistory((prev) => [...prev, questionToSend]);
         } catch (e: any) {
@@ -67,6 +72,15 @@ export default function ChatBox({ department, title, onSend, onClose, fullPage =
                     <span className="text-2xl">🔒</span>
                     <h2 className="text-xl font-bold text-gray-900">{title ?? "Chat with RAG Agent"}</h2>
                 </div>
+                <label className="flex items-center gap-2 text-xs text-gray-600 mr-2">
+                    <input
+                        type="checkbox"
+                        checked={nemoclawMode}
+                        onChange={(e) => setNemoclawMode(e.target.checked)}
+                        className="h-4 w-4"
+                    />
+                    Nemoclaw mode
+                </label>
                 {onClose && (
                     <button
                         onClick={onClose}
