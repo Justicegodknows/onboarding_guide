@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..db import Base
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -12,6 +13,7 @@ class User(Base):
     start_date = Column(Date)
     onboarding_progress = relationship("OnboardingProgress", back_populates="user")
 
+
 class AuthUser(Base):
     __tablename__ = "auth_users"
     id = Column(Integer, primary_key=True, index=True)
@@ -20,7 +22,12 @@ class AuthUser(Base):
     role = Column(String, nullable=False, default="USER")
     dept = Column(String, nullable=False, default="General")
     display_name = Column(String, nullable=False, default="")
+    # Tenant identifier -- used to scope ChromaDB collections and JWT claims.
+    # Format: any string the admin chooses, e.g. "company_abc".
+    # NULL means the user belongs to the default (single-tenant) workspace.
+    tenant_id = Column(String, nullable=True, index=True, default=None)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
 
 class OnboardingProgress(Base):
     __tablename__ = "onboarding_progress"
@@ -30,12 +37,14 @@ class OnboardingProgress(Base):
     status = Column(String)
     user = relationship("User", back_populates="onboarding_progress")
 
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     started_at = Column(Date)
     messages = relationship("ChatMessage", back_populates="session")
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -47,6 +56,7 @@ class ChatMessage(Base):
     sources = Column(Text)
     session = relationship("ChatSession", back_populates="messages")
 
+
 class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True, index=True)
@@ -54,6 +64,7 @@ class Document(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"))
     uploaded_at = Column(Date)
     document_metadata = Column("metadata", Text)
+
 
 class Escalation(Base):
     __tablename__ = "escalations"
@@ -69,7 +80,7 @@ class Integration(Base):
     """Stores user-configured external integrations (email, Jira, calendar, Slack, etc.)."""
     __tablename__ = "integrations"
     id = Column(Integer, primary_key=True, index=True)
-    # Owner of the integration — NULL means org-wide (admin-managed)
+    # Owner of the integration -- NULL means org-wide (admin-managed)
     owner_email = Column(String, nullable=True, index=True)
     # One of: email | jira | google_calendar | slack | microsoft_teams | github | notion | custom
     integration_type = Column(String, nullable=False)
@@ -124,4 +135,3 @@ class AdminUser(Base):
     last_login = Column(DateTime, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-
