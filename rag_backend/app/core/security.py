@@ -10,16 +10,19 @@ from fastapi.security import OAuth2PasswordBearer
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "vaultmind_super_secret_key_change_this_in_prod")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password):
     return pwd_context.hash(password)
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -27,6 +30,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -36,20 +40,36 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
         user_id: str = payload.get("sub")
-        role: str = payload.get("role")
-        dept: str = payload.get("dept")
-        display_name: str = payload.get("display_name", user_id)
         if user_id is None:
             raise credentials_exception
-        return {"id": user_id, "role": role, "dept": dept, "display_name": display_name}
+
+        # Standard claims
+        role: str = payload.get("role")
+        display_name: str = payload.get("display_name", user_id)
+
+        # Tenant claims -- matches the JWT structure:
+        # { "sub": "user_123", "tenant_id": "company_abc",
+        #   "department": "Finance", "role": "admin" }
+        tenant_id: str = payload.get("tenant_id")
+        department: str = payload.get("department") or payload.get("dept")
+
+        return {
+            "id": user_id,
+            "tenant_id": tenant_id,
+            "department": department,
+            "role": role,
+            "display_name": display_name,
+        }
     except JWTError:
         raise credentials_exception
 
-def check_admin_role(user = Depends(get_current_user)):
-    if user.get("role") != "ADMIN":
+
+def check_admin_role(user=Depends(get_current_user)):
+    if user.get("role") not in ("ADMIN", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user does not have enough privileges"
+            detail="The user does not have enough privileges",
         )
     return user
