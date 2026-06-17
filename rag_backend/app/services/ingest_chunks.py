@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -11,7 +11,6 @@ from app.services.local_folder_knowledge import LocalFolderKnowledgeService
 
 HELP_DIR = os.path.join(os.path.dirname(__file__), '../../../help')
 CHUNKS_PATH = os.path.join(HELP_DIR, 'chunks.json')
-
 
 
 def _load_local_chunks() -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -59,8 +58,23 @@ def ingest_chunks(
     allow_local_fallback: bool = True,
     youtube_channel: str | None = None,
     folder_path: str | None = None,
+    tenant_id: Optional[str] = None,
 ):
-    rag = RAGService()
+    """
+    Ingest documents into ChromaDB.
+
+    Args:
+        source: One of 'google_drive', 'youtube', 'local', 'local_folder'.
+        allow_local_fallback: Fall back to local chunks if the primary source fails.
+        youtube_channel: YouTube channel URL or ID (used when source='youtube').
+        folder_path: Local folder path (used when source='local_folder').
+        tenant_id: Tenant identifier.  When provided, documents are stored in a
+                   ChromaDB collection named ``tenant_{tenant_id}_docs`` so each
+                   tenant has fully isolated storage.  When omitted the shared
+                   default collection is used.
+    """
+    # Each call gets a RAGService scoped to the correct tenant collection
+    rag = RAGService(tenant_id=tenant_id)
 
     ingest_source = (source or "").strip().lower()
     if ingest_source not in {"google_drive", "youtube", "local", "local_folder"}:
@@ -106,12 +120,16 @@ def ingest_chunks(
         "ingested": success,
         "errors_or_duplicates": errors,
         "meta": meta,
+        "tenant_id": tenant_id,
+        "collection_name": rag.collection_name,
     }
     print(
-        f"Ingestion completed via {result['ingest_source']}: "
+        f"Ingestion completed via {result['ingest_source']} "
+        f"(collection: {rag.collection_name}): "
         f"{success} ingested, {errors} errors/duplicates, {len(chunks)} chunks seen."
     )
     return result
+
 
 if __name__ == "__main__":
     ingest_chunks()
