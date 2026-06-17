@@ -13,8 +13,8 @@ class NvidiaEmbeddings:
 
     NVIDIA NIM exposes an OpenAI-compatible ``/embeddings`` endpoint and
     accepts an extra ``input_type`` parameter that drives asymmetric retrieval:
-      - ``"passage"``  — used when ingesting / indexing documents into ChromaDB.
-      - ``"query"``    — used when embedding a user query at retrieval time.
+      - ``"passage"``  -- used when ingesting / indexing documents into ChromaDB.
+      - ``"query"``    -- used when embedding a user query at retrieval time.
 
     Both paths share the same model name, satisfying the RAG consistency
     requirement (CLAUDE.md): ingest and retrieve always use the same model.
@@ -61,10 +61,36 @@ class NvidiaEmbeddings:
 
 
 class RAGService:
-    def __init__(self):
+    def __init__(self, tenant_id: Optional[str] = None):
+        """
+        Initialize the RAG service.
+
+        Args:
+            tenant_id: Optional tenant identifier. When provided, documents are
+                       stored in and retrieved from a ChromaDB collection that is
+                       exclusive to this tenant:
+                           collection_name = f"tenant_{tenant_id}_docs"
+                       When omitted (or None), the legacy shared collection name
+                       "langchain" is used so existing deployments are not broken.
+        """
         self.embedding_model = settings.NVIDIA_EMBED_MODEL
         self.llm_model = settings.LM_STUDIO_MODEL
         self.persist_directory = "./chroma_db"
+
+        # ------------------------------------------------------------------
+        # Per-tenant collection isolation in ChromaDB.
+        # Each tenant gets their own collection so their documents are never
+        # mixed with another tenant's data.  When no tenant_id is supplied
+        # we fall back to the legacy "langchain" default collection so that
+        # existing single-tenant deployments continue to work unchanged.
+        # ------------------------------------------------------------------
+        self.tenant_id = tenant_id
+        if tenant_id:
+            # In ChromaDB -- give each tenant their own collection
+            collection_name = f"tenant_{tenant_id}_docs"
+        else:
+            collection_name = "langchain"  # ChromaDB / LangChain default
+        self.collection_name = collection_name
 
         try:
             chroma_mod = importlib.import_module("langchain_chroma")
@@ -92,9 +118,11 @@ class RAGService:
         )
 
         self.embeddings = NvidiaEmbeddings()
+        # Each tenant gets their own isolated ChromaDB collection
         self.vector_store = self._Chroma(
             persist_directory=self.persist_directory,
             embedding_function=self.embeddings,
+            collection_name=self.collection_name,
         )
 
     def chunk(self, text: str) -> List[str]:
@@ -136,6 +164,9 @@ class RAGService:
             if not content:
                 return {"status": "skipped", "chunks_added": 0}
             doc_metadata = {**(metadata or {}), **{k: v for k, v in document.items() if k not in {"text", "content"}}}
+            # Stamp tenant_id into metadata for traceability / secondary filtering
+            if self.tenant_id:
+                doc_metadata.setdefault("tenant_id", self.tenant_id)
             docs = [self._Document(page_content=content, metadata=doc_metadata)]
             doc_id = str(doc_metadata.get("chunk_id") or "")
             ids = [doc_id] if doc_id else None
@@ -151,6 +182,8 @@ class RAGService:
         for idx, chunk_text in enumerate(chunks):
             base_metadata = metadata or {}
             doc_metadata = {**base_metadata, "source": base_metadata.get("source", file_path)}
+            if self.tenant_id:
+                doc_metadata.setdefault("tenant_id", self.tenant_id)
             documents.append(self._Document(page_content=chunk_text, metadata=doc_metadata))
             doc_id = str(base_metadata.get("doc_id") or "")
             ids.append(f"{doc_id}:{idx}" if doc_id else f"{file_path}:{idx}")
@@ -204,7 +237,7 @@ class RAGService:
                 data = response.json()
             return str(data["choices"][0]["message"].get("content", "")).strip()
         except (httpx.ConnectError, httpx.ConnectTimeout, OSError):
-            # NVIDIA NIM unreachable — fall back to LM Studio
+            # NVIDIA NIM unreachable -- fall back to LM Studio
             pass
         except httpx.HTTPStatusError:
             # Any HTTP error from NVIDIA NIM should fall back to LM Studio.
