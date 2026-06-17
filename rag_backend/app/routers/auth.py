@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8)
     dept: str = Field(default="General")
     display_name: str = Field(default="")
+    tenant_id: Optional[str] = Field(default=None)
 
 
 @router.post("/token")
@@ -41,8 +43,9 @@ def login_for_access_token(
     access_token = create_access_token(
         data={
             "sub": user.email,
+            "tenant_id": user.tenant_id,
+            "department": user.dept,
             "role": user.role,
-            "dept": user.dept,
             "display_name": user.display_name or user.email,
         }
     )
@@ -50,6 +53,7 @@ def login_for_access_token(
         "access_token": access_token,
         "token_type": "bearer",
         "username": user.email,
+        "tenant_id": user.tenant_id,
         "role": user.role,
         "dept": user.dept,
         "display_name": user.display_name or user.email,
@@ -78,6 +82,7 @@ def register_employee(payload: RegisterRequest, db: Session = Depends(get_db)):
         password_hash=get_password_hash(payload.password),
         role="USER",
         dept=payload.dept,
+        tenant_id=payload.tenant_id,
         display_name=payload.display_name or normalized_email,
     )
     db.add(user)
@@ -90,6 +95,7 @@ def register_employee(payload: RegisterRequest, db: Session = Depends(get_db)):
             "username": user.email,
             "role": user.role,
             "dept": user.dept,
+            "tenant_id": user.tenant_id,
             "display_name": user.display_name,
         },
     }
