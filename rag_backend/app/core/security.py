@@ -7,12 +7,14 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+# ---------------------------------------------------------------------------
 # Configuration
+# ---------------------------------------------------------------------------
 SECRET_KEY = os.getenv("SECRET_KEY", "vaultmind_super_secret_key_change_this_in_prod")
-ALGORITHM = "HS256"
+ALGORITHM  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+pwd_context   = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
@@ -45,21 +47,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if user_id is None:
             raise credentials_exception
 
-        # Standard claims
-        role: str = payload.get("role")
+        role:         str = payload.get("role")
         display_name: str = payload.get("display_name", user_id)
 
-        # Tenant claims -- matches the JWT structure:
-        # { "sub": "user_123", "tenant_id": "company_abc",
-        #   "department": "Finance", "role": "admin" }
-        tenant_id: str = payload.get("tenant_id")
-        department: str = payload.get("department") or payload.get("dept")
+        # Multi-tenant JWT claims:
+        # { "sub": "...", "tenant_id": "company_abc", "department": "Finance", "role": "..." }
+        tenant_id:  str = payload.get("tenant_id")
+        department: str = payload.get("department") or payload.get("dept")  # legacy fallback
 
         return {
-            "id": user_id,
-            "tenant_id": tenant_id,
-            "department": department,
-            "role": role,
+            "id":           user_id,
+            "tenant_id":    tenant_id,
+            "department":   department,
+            "dept":         department,   # keep legacy key so older code paths still work
+            "role":         role,
             "display_name": display_name,
         }
     except JWTError:
@@ -67,7 +68,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 def check_admin_role(user=Depends(get_current_user)):
-    if user.get("role") not in ("ADMIN", "admin"):
+    """Legacy guard kept for backward compatibility with existing /admin routes."""
+    if (user.get("role") or "").upper() not in ("ADMIN", "SUPER_ADMIN"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user does not have enough privileges",
