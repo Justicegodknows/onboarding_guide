@@ -1,20 +1,13 @@
-# rag_backend/app/routers/platform.py
-# Level 1 -- Super Admin endpoints (role=SUPER_ADMIN only)
-# POST   /platform/tenants              create a new tenant
-# GET    /platform/tenants              list all tenants
-# PATCH  /platform/tenants/{tenant_id} suspend/activate/change plan
-# GET    /platform/usage               cross-tenant usage stats
+from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.permissions import require_super_admin
 from app.db import SessionLocal
-from app.models.db_models import AuthUser, Tenant
+from app.core.permissions import require_super_admin
+from app.core.security import get_password_hash
+from app.models.db_models import AuthUser
 
 router = APIRouter(prefix="/platform", tags=["Platform (Super Admin)"])
 
@@ -27,163 +20,107 @@ def get_db():
         db.close()
 
 
-class CreateTenantRequest(BaseModel):
-    tenant_id: str = Field(description="Unique slug, e.g. company_abc")
-    name: str = Field(description="Human-readable company name")
-    plan: str = Field(default="starter", description="starter | pro | enterprise")
-    admin_email: str = Field(description="Email of the first Tenant Admin")
+class CreateTenantAdminRequest(BaseModel):
+    tenant_id:        str = Field(min_length=2, description="Unique tenant identifier, e.g. company_abc")
+    admin_email:      str
+    admin_password:   str = Field(min_length=8)
+    admin_department: str = Field(default="IT")
+    display_name:     str = Field(default="")
 
 
-class UpdateTenantRequest(BaseModel):
-    status: Optional[str] = Field(None, description="active | suspended")
-    plan: Optional[str] = Field(None)
-    name: Optional[str] = Field(None)
-
-
+# ---------------------------------------------------------------------------
+# POST /platform/tenants
+# Create a new tenant and its first Tenant Admin account.
+# Only justicegsamuel@gmail.com (Super Admin) can call this.
+# ---------------------------------------------------------------------------
 @router.post("/tenants", status_code=status.HTTP_201_CREATED)
-def create_tenant(
-    payload: CreateTenantRequest,
+def create_tenant_and_admin(
+    payload: CreateTenantAdminRequest,
+    current_user: dict = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    _sa: dict = Depends(require_super_admin),
 ):
-    """
-    Create a new tenant and provision its first Tenant Admin account.
-    The Tenant Admin gets a random password -- they must reset it via the invite flow.
-    """
-    existing = db.query(Tenant).filter(Tenant.tenant_id == payload.tenant_id).first()
+    normalized_email = payload.admin_email.lower().strip()
+    if "@" not in normalized_email:
+        raise HTTPException(status_code=400, detail="A valid admin_email is required")
+
+    existing = db.query(AuthUser).filter(AuthUser.email == normalized_email).first()
     if existing:
-        raise HTTPException(status_code=409, detail=f"Tenant '{payload.tenant_id}' already exists.")
+        raise HTTPException(status_code=409, detail="Admin user already exists")
 
-    tenant = Tenant(
+    admin_user = AuthUser(
+        email=normalized_email,
+        password_hash=get_password_hash(payload.admin_password),
+        role="TENANT_ADMIN",
+        dept=payload.admin_department,
         tenant_id=payload.tenant_id,
-        name=payload.name,
-        plan=payload.plan,
-        status="active",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        display_name=payload.display_name or normalized_email,
     )
-    db.add(tenant)
-    db.flush()
 
-    admin_user = db.query(AuthUser).filter(
-        AuthUser.email == payload.admin_email.lower().strip()
-    ).first()
-
-    if not admin_user:
-        import secrets
-        from app.core.security import get_password_hash
-        admin_user = AuthUser(
-            email=payload.admin_email.lower().strip(),
-            password_hash=get_password_hash(secrets.token_urlsafe(32)),
-            role="TENANT_ADMIN",
-            dept="IT",
-            tenant_id=payload.tenant_id,
-            display_name=payload.admin_email,
-        )
-        db.add(admin_user)
-    else:
-        admin_user.role = "TENANT_ADMIN"
-        admin_user.tenant_id = payload.tenant_id
-
+    db.add(admin_user)
     db.commit()
-    db.refresh(tenant)
+    db.refresh(admin_user)
 
     return {
-        "message": "Tenant created successfully.",
-        "tenant_id": tenant.tenant_id,
-        "name": tenant.name,
-        "plan": tenant.plan,
-        "status": tenant.status,
-        "admin_email": payload.admin_email,
+        "tenant_id": payload.tenant_id,
+        "tenant_admin": {
+            "email":      admin_user.email,
+            "role":       admin_user.role,
+            "department": admin_user.dept,
+            "tenant_id":  admin_user.tenant_id,
+        },
     }
 
 
+# ---------------------------------------------------------------------------
+# GET /platform/tenants
+# List all distinct tenant_ids inferred from AuthUser rows.
+# ---------------------------------------------------------------------------
 @router.get("/tenants")
 def list_tenants(
-    limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    current_user: dict = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    _sa: dict = Depends(require_super_admin),
 ):
-    """List all tenants on the platform with user counts."""
-    total = db.query(Tenant).count()
-    tenants = db.query(Tenant).offset(offset).limit(limit).all()
-    return {
-        "total": total,
-        "tenants": [
-            {
-                "tenant_id": t.tenant_id,
-                "name": t.name,
-                "plan": t.plan,
-                "status": t.status,
-                "created_at": t.created_at.isoformat() if t.created_at else None,
-                "user_count": db.query(AuthUser).filter(AuthUser.tenant_id == t.tenant_id).count(),
-            }
-            for t in tenants
-        ],
-    }
+    rows = db.query(AuthUser.tenant_id).distinct().all()
+    tenant_ids = sorted([r[0] for r in rows if r[0]])
+    return {"tenants": tenant_ids}
 
 
-@router.patch("/tenants/{tenant_id}")
-def update_tenant(
+# ---------------------------------------------------------------------------
+# PATCH /platform/tenants/{tenant_id}/suspend
+# Suspend all users in a tenant by setting their role to SUSPENDED.
+# ---------------------------------------------------------------------------
+@router.patch("/tenants/{tenant_id}/suspend")
+def suspend_tenant(
     tenant_id: str,
-    payload: UpdateTenantRequest,
+    current_user: dict = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    _sa: dict = Depends(require_super_admin),
 ):
-    """
-    Suspend or activate a tenant, or change their billing plan.
-    Suspending sets status=suspended -- data is preserved, logins are blocked.
-    """
-    tenant = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found.")
+    users = db.query(AuthUser).filter(AuthUser.tenant_id == tenant_id).all()
+    if not users:
+        raise HTTPException(status_code=404, detail=f"No users found for tenant '{tenant_id}'")
 
-    if payload.status is not None:
-        if payload.status not in ("active", "suspended"):
-            raise HTTPException(status_code=400, detail="status must be 'active' or 'suspended'.")
-        tenant.status = payload.status
-    if payload.plan is not None:
-        tenant.plan = payload.plan
-    if payload.name is not None:
-        tenant.name = payload.name
-
-    tenant.updated_at = datetime.utcnow()
+    for u in users:
+        u.role = "SUSPENDED"
     db.commit()
 
-    return {
-        "message": f"Tenant '{tenant_id}' updated.",
-        "tenant_id": tenant.tenant_id,
-        "status": tenant.status,
-        "plan": tenant.plan,
-        "name": tenant.name,
-    }
+    return {"suspended": tenant_id, "affected_users": len(users)}
 
 
+# ---------------------------------------------------------------------------
+# GET /platform/usage
+# Returns per-tenant user counts. Extend with token/request metrics later.
+# ---------------------------------------------------------------------------
 @router.get("/usage")
 def platform_usage(
+    current_user: dict = Depends(require_super_admin),
     db: Session = Depends(get_db),
-    _sa: dict = Depends(require_super_admin),
 ):
-    """
-    Cross-tenant usage overview for billing and monitoring.
-    Returns per-tenant user counts and plan breakdown.
-    """
-    tenants = db.query(Tenant).all()
-    rows = []
-    for t in tenants:
-        user_count = db.query(AuthUser).filter(AuthUser.tenant_id == t.tenant_id).count()
-        rows.append({
-            "tenant_id": t.tenant_id,
-            "name": t.name,
-            "plan": t.plan,
-            "status": t.status,
-            "user_count": user_count,
-        })
+    rows = db.query(AuthUser.tenant_id).all()
+    counts: dict[str, int] = {}
+    for (tid,) in rows:
+        key = tid or "__no_tenant__"
+        counts[key] = counts.get(key, 0) + 1
+
     return {
-        "total_tenants": len(rows),
-        "active_tenants": sum(1 for r in rows if r["status"] == "active"),
-        "suspended_tenants": sum(1 for r in rows if r["status"] == "suspended"),
-        "total_users": sum(r["user_count"] for r in rows),
-        "tenants": rows,
+        "usage": [{"tenant_id": k, "user_count": v} for k, v in sorted(counts.items())]
     }
